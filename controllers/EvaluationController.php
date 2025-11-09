@@ -1,4 +1,40 @@
 <?php
+if (isset($_GET['action']) && $_GET['action'] === 'get_teacher' && isset($_GET['id'])) {
+    require_once '../config/database.php';
+    require_once '../models/Teacher.php';
+    $db = (new Database())->getConnection();
+    $teacherModel = new Teacher($db);
+    $teacher = $teacherModel->getById($_GET['id']);
+    if ($teacher) {
+        echo json_encode(['success' => true, 'teacher' => [
+            'name' => $teacher['name'],
+            'department' => $teacher['department']
+        ]]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Teacher not found']);
+    }
+    exit();
+}
+
+
+// --- AJAX handler for get_teacher action ---
+if (isset($_GET['action']) && $_GET['action'] === 'get_teacher' && isset($_GET['id'])) {
+    require_once '../config/database.php';
+    require_once '../models/Teacher.php';
+    $db = (new Database())->getConnection();
+    $teacherModel = new Teacher($db);
+    $teacher = $teacherModel->getById($_GET['id']);
+    if ($teacher) {
+        echo json_encode(['success' => true, 'teacher' => [
+            'name' => $teacher['name'],
+            'department' => $teacher['department']
+        ]]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Teacher not found']);
+    }
+    exit();
+}
+
 class EvaluationController {
     private $db;
     private $evaluationModel;

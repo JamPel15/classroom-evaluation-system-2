@@ -114,7 +114,7 @@ if($_POST && isset($_POST['submit_evaluation'])) {
                                 <div class="row mb-3">
                                     <div class="col-md-6">
                                         <label class="form-label">Name of Faculty:</label>
-                                        <input type="text" class="form-control" id="facultyName" name="faculty_name" readonly>
+                                        <input type="text" class="form-control" id="facultyName" name="faculty_name">
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label">Academic Year:</label>
@@ -137,7 +137,7 @@ if($_POST && isset($_POST['submit_evaluation'])) {
                                 <div class="row mb-3">
                                     <div class="col-md-6">
                                         <label class="form-label">Department:</label>
-                                        <input type="text" class="form-control" id="department" name="department" readonly>
+                                        <input type="text" class="form-control" id="department" name="department">
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label">Subject/Time of Observation:</label>
@@ -535,13 +535,7 @@ if($_POST && isset($_POST['submit_evaluation'])) {
                                     </div>
                                 </div>
                                 
-                                <!-- AI Recommendations -->
-                                <div class="ai-recommendation">
-                                    <h6><i class="fas fa-robot me-2"></i>AI Recommendations</h6>
-                                    <div id="aiRecommendations">
-                                        <p class="mb-0">Complete the evaluation to receive AI-powered recommendations for improvement.</p>
-                                    </div>
-                                </div>
+
                                 
                                 <!-- Strengths and Areas for Improvement -->
                                 <div class="row mt-4">
@@ -555,9 +549,15 @@ if($_POST && isset($_POST['submit_evaluation'])) {
                                     </div>
                                 </div>
                                 
-                                <div class="mt-3">
-                                    <label class="form-label">RECOMMENDATIONS</label>
-                                    <textarea class="form-control" id="recommendations" name="recommendations" rows="3" placeholder="Provide specific recommendations for improvement"></textarea>
+                                <div class="row mt-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">RECOMMENDATIONS</label>
+                                        <textarea class="form-control" id="recommendations" name="recommendations" rows="3" placeholder="Provide specific recommendations for improvement"></textarea>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">AGREEMENT</label>
+                                        <textarea class="form-control" id="agreement" name="agreement" rows="3" placeholder="State agreement or additional notes"></textarea>
+                                    </div>
                                 </div>
                                 
                                 <!-- Agreement Section -->
@@ -682,7 +682,6 @@ if($_POST && isset($_POST['submit_evaluation'])) {
                     e.target.name.includes('management') || 
                     e.target.name.includes('assessment')) {
                     calculateAverages();
-                    generateAIRecommendations();
                 }
             });
 
@@ -803,98 +802,7 @@ if($_POST && isset($_POST['submit_evaluation'])) {
             };
         }
 
-        function generateAIRecommendations() {
-            const averages = calculateAverages();
-            const aiRecommendations = document.getElementById('aiRecommendations');
-            
-            let recommendationsHTML = '';
-            
-            // Communications recommendations
-            if (averages.communications < 3.0) {
-                recommendationsHTML += `
-                    <div class="mb-3">
-                        <strong class="text-danger">Communication Skills:</strong>
-                        <p class="mb-1">Consider voice projection exercises and practice speaking more slowly and clearly. Incorporate more interactive questioning techniques to engage students.</p>
-                        <small class="text-muted">Priority: High</small>
-                    </div>
-                `;
-            } else if (averages.communications < 4.0) {
-                recommendationsHTML += `
-                    <div class="mb-3">
-                        <strong class="text-warning">Communication Skills:</strong>
-                        <p class="mb-1">Continue developing non-verbal communication skills. Try incorporating more varied tone and pacing to maintain student engagement.</p>
-                        <small class="text-muted">Priority: Medium</small>
-                    </div>
-                `;
-            }
-            
-            // Management recommendations
-            if (averages.management < 3.0) {
-                recommendationsHTML += `
-                    <div class="mb-3">
-                        <strong class="text-danger">Lesson Management:</strong>
-                        <p class="mb-1">Focus on creating clearer learning objectives and connecting lessons to real-world examples. Consider using more visual aids and interactive activities.</p>
-                        <small class="text-muted">Priority: High</small>
-                    </div>
-                `;
-            } else if (averages.management < 4.0) {
-                recommendationsHTML += `
-                    <div class="mb-3">
-                        <strong class="text-warning">Lesson Management:</strong>
-                        <p class="mb-1">Enhance lesson introductions to better capture student interest. Try incorporating more varied teaching strategies to address different learning styles.</p>
-                        <small class="text-muted">Priority: Medium</small>
-                    </div>
-                `;
-            }
-            
-            // Assessment recommendations
-            if (averages.assessment < 3.0) {
-                recommendationsHTML += `
-                    <div class="mb-3">
-                        <strong class="text-danger">Student Assessment:</strong>
-                        <p class="mb-1">Implement more formative assessment techniques to monitor student understanding throughout the lesson. Consider using quick polls or exit tickets.</p>
-                        <small class="text-muted">Priority: High</small>
-                    </div>
-                `;
-            } else if (averages.assessment < 4.0) {
-                recommendationsHTML += `
-                    <div class="mb-3">
-                        <strong class="text-warning">Student Assessment:</strong>
-                        <p class="mb-1">Diversify assessment methods to include more project-based and practical evaluations that align with different learning styles.</p>
-                        <small class="text-muted">Priority: Medium</small>
-                    </div>
-                `;
-            }
-            
-            // Overall recommendations
-            if (averages.overall < 3.0) {
-                recommendationsHTML += `
-                    <div class="mb-3">
-                        <strong class="text-danger">Overall Teaching Performance:</strong>
-                        <p class="mb-1">Consider attending professional development workshops on classroom management and instructional strategies. Peer observation of highly-rated faculty may provide valuable insights.</p>
-                        <small class="text-muted">Priority: High</small>
-                    </div>
-                `;
-            }
-            
-            if (recommendationsHTML === '' && averages.overall > 0) {
-                recommendationsHTML = `
-                    <div class="alert alert-success mb-0">
-                        <i class="fas fa-check-circle me-2"></i>
-                        <strong>Excellent Performance!</strong> Continue with your current teaching strategies and consider mentoring other faculty members.
-                    </div>
-                `;
-            } else if (recommendationsHTML === '') {
-                recommendationsHTML = `
-                    <div class="alert alert-info mb-0">
-                        <i class="fas fa-robot me-2"></i>
-                        Complete the evaluation to receive AI-powered recommendations for improvement.
-                    </div>
-                `;
-            }
-            
-            aiRecommendations.innerHTML = recommendationsHTML;
-        }
+
 
         function saveEvaluationDraft() {
             if (validateForm(true)) {

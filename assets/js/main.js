@@ -1,6 +1,17 @@
 // Main JavaScript functionality
 document.addEventListener('DOMContentLoaded', function() {
     initializePage();
+
+    // Ensure teacher-item click event is always attached
+    document.addEventListener('click', function(e) {
+        const teacherItem = e.target.closest('.teacher-item');
+        if (teacherItem) {
+            const teacherId = teacherItem.getAttribute('data-teacher-id');
+            if (teacherId) {
+                startEvaluation(teacherId);
+            }
+        }
+    });
 });
 
 function initializePage() {
@@ -100,19 +111,25 @@ function startEvaluation(teacherId) {
     // Show evaluation form and hide teacher list
     const teacherList = document.getElementById('teacherList');
     const evaluationForm = document.getElementById('evaluationFormContainer');
-    
     if (teacherList) teacherList.classList.add('d-none');
     if (evaluationForm) evaluationForm.classList.remove('d-none');
-    
-    // Load teacher data
+
+    // Always clear previous values
+    const facultyName = document.getElementById('facultyName');
+    const department = document.getElementById('department');
+    if (facultyName) facultyName.value = '';
+    if (department) department.value = '';
+
+    // Load teacher data and fill fields
     fetch(`../controllers/EvaluationController.php?action=get_teacher&id=${teacherId}`)
         .then(response => response.json())
         .then(data => {
             if(data.success) {
-                const facultyName = document.getElementById('facultyName');
-                const department = document.getElementById('department');
                 if (facultyName) facultyName.value = data.teacher.name;
                 if (department) department.value = data.teacher.department;
+                // Set hidden teacher_id field
+                const teacherIdInput = document.getElementById('selected_teacher_id');
+                if (teacherIdInput) teacherIdInput.value = teacherId;
             }
         })
         .catch(error => {

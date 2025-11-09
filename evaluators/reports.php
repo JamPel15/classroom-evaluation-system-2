@@ -97,61 +97,7 @@ $stats = $evaluation->getDepartmentStats($_SESSION['department'], $academic_year
                 </div>
             </div>
 
-            <!-- Statistics Cards -->
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="dashboard-stat stat-1">
-                        <i class="fas fa-clipboard-check"></i>
-                        <div class="number"><?php echo $stats['total_evaluations']; ?></div>
-                        <div>Total Evaluations</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="dashboard-stat stat-2">
-                        <i class="fas fa-chart-line"></i>
-                        <div class="number"><?php echo number_format($stats['avg_rating'], 1); ?></div>
-                        <div>Average Rating</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="dashboard-stat stat-3">
-                        <i class="fas fa-user-check"></i>
-                        <div class="number"><?php echo $stats['teachers_evaluated']; ?></div>
-                        <div>Teachers Evaluated</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="dashboard-stat stat-4">
-                        <i class="fas fa-robot"></i>
-                        <div class="number"><?php echo $stats['ai_recommendations']; ?></div>
-                        <div>AI Recommendations</div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Charts -->
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">Rating Distribution</h5>
-                        </div>
-                        <div class="card-body">
-                            <canvas id="ratingChart" width="400" height="300"></canvas>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">Category Averages</h5>
-                        </div>
-                        <div class="card-body">
-                            <canvas id="categoryChart" width="400" height="300"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <!-- Evaluations Table -->
             <div class="card">
