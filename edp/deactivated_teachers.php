@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['teacher_id'], $_POST[
                                         <form method="POST" action="" style="display:inline;">
                                             <input type="hidden" name="teacher_id" value="<?php echo $row['id']; ?>">
                                             <input type="hidden" name="action" value="activate">
-                                            <button type="submit" class="btn btn-sm btn-success">Activate</button>
+                                            <button type="submit" class="btn btn-sm btn-primary">Evaluate this teacher</button>
                                         </form>
                                     </td>
                                 </tr>

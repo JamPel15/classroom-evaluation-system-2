@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['teacher_id'], $_POST[
                                         <span style="display: inline-flex; align-items: center; gap: 0.5rem;">
                                             Actions
                                             <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addTeacherModal" style="font-size:0.95em; padding: 0.25rem 0.75rem; line-height: 1;">
-                                                <i class="fas fa-plus"></i> Add
+                                                <i class="fas fa-plus"></i> Add Teacher
                                             </button>
                                         </span>
                                     </th>

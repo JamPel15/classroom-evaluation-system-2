@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'], $_POST['ac
                                         <form method="POST" action="" style="display:inline;">
                                             <input type="hidden" name="user_id" value="<?php echo $row['id']; ?>">
                                             <input type="hidden" name="action" value="activate">
-                                            <button type="submit" class="btn btn-sm btn-success">Activate</button>
+                                            <button type="submit" class="btn btn-sm btn-primary">Activate</button>
                                         </form>
                                     </td>
                                 </tr>

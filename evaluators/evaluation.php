@@ -53,11 +53,6 @@ if($_POST && isset($_POST['submit_evaluation'])) {
         <div class="container-fluid">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h3>Classroom Evaluation</h3>
-                <div>
-                    <button class="btn btn-secondary" id="backToTeachers">
-                        <i class="fas fa-arrow-left me-2"></i> Back to Teachers
-                    </button>
-                </div>
             </div>
 
             <?php if(isset($_SESSION['error'])): ?>
@@ -556,7 +551,7 @@ if($_POST && isset($_POST['submit_evaluation'])) {
                                                 STRENGTHS:
                                             </button>
                                             <ul class="dropdown-menu">
-                                                <li><a class="dropdown-item">Complete the Evaluation</a></li>
+                                                <li><a class="dropdown-item">*AI COMMENTS*</a></li>
                                             </ul>
                                             <textarea class="form-control" id="strengths" name="strengths" rows="3" placeholder="List the teacher's strengths observed during the evaluation"></textarea>
                                         </div>
@@ -567,20 +562,36 @@ if($_POST && isset($_POST['submit_evaluation'])) {
                                                 AREAS FOR IMPROVEMENT:
                                             </button>
                                             <ul class="dropdown-menu">
-                                                <li><a class="dropdown-item">Complete the Evaluation</a></li>
+                                                <li><a class="dropdown-item">*AI COMMENTS*</a></li>
                                             </ul>
-                                        <textarea class="form-control" id="improvementAreas" name="improvement_areas" rows="3" placeholder="List areas where the teacher can improve"></textarea>
+                                            <textarea class="form-control" id="improvementAreas" name="improvement_areas" rows="3" placeholder="List areas where the teacher can improve"></textarea>
+                                        </div>
                                     </div>
                                 </div>
                                 
                                 <div class="row mt-3">
                                     <div class="col-md-6">
-                                        <label class="form-label">RECOMMENDATIONS</label>
-                                        <textarea class="form-control" id="recommendations" name="recommendations" rows="3" placeholder="Provide specific recommendations for improvement"></textarea>
+                                        <div class="input-group">
+                                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-color: #ccc;">
+                                                RECOMMENDATIONS:
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item">*AI COMMENTS*</a></li>
+                                            </ul>
+                                            <textarea class="form-control" id="recommendations" name="recommendations" rows="3" placeholder="Provide specific recommendations for improvement"></textarea>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">AGREEMENT</label>
-                                        <textarea class="form-control" id="agreement" name="agreement" rows="3" placeholder="State agreement or additional notes"></textarea>
+                                        <div class="col-md-6">
+                                            <div class="input-group">
+                                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-color: #ccc;">
+                                                    AGREEMENT:
+                                                </button>
+                                                <ul class="dropdown-menu">
+                                                    <li><a class="dropdown-item">*AI COMMENTS*</a></li>
+                                                </ul>
+                                            <textarea class="form-control" id="agreement" name="agreement" rows="3" placeholder="State agreement or additional notes"></textarea>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 

@@ -9,75 +9,10 @@ require_once '../config/database.php';
 require_once '../models/Teacher.php';
 
 $database = new Database();
-$db = $database->getConnection();
+$database->getConnection();
+$db = $database->conn;
 
 $teacher = new Teacher($db);
-
-// Handle form actions
-// Handle form actions
-if($_POST) {
-    if(isset($_POST['add_teacher'])) {
-        // Validate data
-        $validation_errors = $teacher->validate($_POST);
-        
-        if (empty($validation_errors)) {
-            // Check if teacher already exists
-            if ($teacher->existsInDepartment($_POST['name'], $_SESSION['department'])) {
-                $_SESSION['error'] = "A teacher with this name already exists in the department.";
-            } else {
-                $result = $teacher->create([
-                    'name' => $_POST['name'],
-                    'department' => $_SESSION['department'],
-                    'email' => $_POST['email'],
-                    'phone' => $_POST['phone']
-                ]);
-                
-                if($result) {
-                    $_SESSION['success'] = "Teacher added successfully!";
-                } else {
-                    $_SESSION['error'] = "Failed to add teacher. Please try again.";
-                }
-            }
-        } else {
-            $_SESSION['error'] = implode("<br>", $validation_errors);
-        }
-    }
-    elseif(isset($_POST['update_teacher'])) {
-        // Validate data
-        $validation_errors = $teacher->validate($_POST);
-        
-        if (empty($validation_errors)) {
-            $result = $teacher->update($_POST['teacher_id'], [
-                'name' => $_POST['name'],
-                'email' => $_POST['email'],
-                'phone' => $_POST['phone']
-            ]);
-            
-            if($result) {
-                $_SESSION['success'] = "Teacher updated successfully!";
-            } else {
-                $_SESSION['error'] = "Failed to update teacher. Please try again.";
-            }
-        } else {
-            $_SESSION['error'] = implode("<br>", $validation_errors);
-        }
-    }
-    elseif(isset($_POST['toggle_status'])) {
-        $teacher_id = $_POST['teacher_id'];
-        $result = $teacher->toggleStatus($teacher_id);
-        
-        if($result) {
-            $current_teacher = $teacher->getById($teacher_id);
-            $action = $current_teacher['status'] == 'active' ? 'activated' : 'deactivated';
-            $_SESSION['success'] = "Teacher {$action} successfully!";
-        } else {
-            $_SESSION['error'] = "Failed to update teacher status. Please try again.";
-        }
-    }
-    
-    header("Location: teachers.php");
-    exit();
-}
 
 // Get teachers for current department
 $teachers = $teacher->getByDepartment($_SESSION['department']);
@@ -89,6 +24,89 @@ $teachers = $teacher->getByDepartment($_SESSION['department']);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Teachers - <?php echo $_SESSION['department']; ?></title>
     <?php include '../includes/header.php'; ?>
+    <style>
+        .teacher-cards-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .teacher-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .teacher-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+        
+        .teacher-photo-section {
+            position: relative;
+            height: 180px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .teacher-photo {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .default-photo {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 4px solid white;
+        }
+        
+        .default-photo i {
+            font-size: 2.5rem;
+            color: white;
+        }
+        
+        .teacher-info {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .teacher-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        
+        .teacher-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+        }
+    </style>
 </head>
 <body>
     <?php include '../includes/sidebar.php'; ?>
@@ -96,10 +114,7 @@ $teachers = $teacher->getByDepartment($_SESSION['department']);
     <div class="main-content">
         <div class="container-fluid">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h3>Manage Teachers - <?php echo $_SESSION['department']; ?></h3>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTeacherModal">
-                    <i class="fas fa-plus me-2"></i>Add New Teacher
-                </button>
+                <h3>Teachers - <?php echo $_SESSION['department']; ?></h3>
             </div>
 
             <?php if(isset($_SESSION['error'])): ?>
@@ -118,184 +133,47 @@ $teachers = $teacher->getByDepartment($_SESSION['department']);
             </div>
             <?php endif; ?>
 
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Teachers List</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Phone</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <!-- In the table body section of teachers.php -->
-                            <tbody>
-                                <?php if($teachers->rowCount() > 0): ?>
-                                <?php $counter = 1; ?>
-                                <?php while($teacher_row = $teachers->fetch(PDO::FETCH_ASSOC)): ?>
-                                <tr>
-                                    <td><?php echo $counter++; ?></td>
-                                    <td><?php echo htmlspecialchars($teacher_row['name']); ?></td>
-                                    <td><?php echo htmlspecialchars($teacher_row['email'] ?? 'N/A'); ?></td>
-                                    <td><?php echo htmlspecialchars($teacher_row['phone'] ?? 'N/A'); ?></td>
-                                    <td>
-                                        <span class="badge bg-<?php echo $teacher_row['status'] == 'active' ? 'success' : 'secondary'; ?>">
-                                            <?php echo ucfirst($teacher_row['status']); ?>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <button class="btn btn-sm btn-outline-primary edit-teacher" 
-                                                data-teacher-id="<?php echo $teacher_row['id']; ?>"
-                                                data-name="<?php echo htmlspecialchars($teacher_row['name']); ?>"
-                                                data-email="<?php echo htmlspecialchars($teacher_row['email']); ?>"
-                                                data-phone="<?php echo htmlspecialchars($teacher_row['phone']); ?>">
-                                            <i class="fas fa-edit"></i> Edit
-                                        </button>
-                                        
-                                        <form method="POST" class="d-inline">
-                                            <input type="hidden" name="teacher_id" value="<?php echo $teacher_row['id']; ?>">
-                                            <?php if($teacher_row['status'] == 'active'): ?>
-                                            <button type="submit" name="toggle_status" 
-                                                    class="btn btn-sm btn-warning"
-                                                    onclick="return confirm('Are you sure you want to deactivate this teacher? They will not be available for new evaluations.')">
-                                                <i class="fas fa-pause"></i> Deactivate
-                                            </button>
-                                            <?php else: ?>
-                                            <button type="submit" name="toggle_status" 
-                                                    class="btn btn-sm btn-success"
-                                                    onclick="return confirm('Are you sure you want to activate this teacher? They will be available for new evaluations.')">
-                                                <i class="fas fa-play"></i> Activate
-                                            </button>
-                                            <?php endif; ?>
-                                        </form>
-                                    </td>
-                                </tr>
-                                <?php endwhile; ?>
-                                <?php else: ?>
-                                <tr>
-                                    <td colspan="6" class="text-center py-4">
-                                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                                        <h5>No Teachers Found</h5>
-                                        <p class="text-muted">Add your first teacher to get started with evaluations.</p>
-                                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTeacherModal">
-                                            <i class="fas fa-plus me-2"></i>Add First Teacher
-                                        </button>
-                                    </td>
-                                </tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Add Teacher Modal -->
-    <div class="modal fade" id="addTeacherModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Add New Teacher</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form method="POST">
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="name" class="form-label">Full Name *</label>
-                            <input type="text" class="form-control" id="name" name="name" required>
+            <div class="teacher-cards-container">
+                <?php if($teachers->rowCount() > 0): ?>
+                    <?php $counter = 1; ?>
+                    <?php while($teacher_row = $teachers->fetch(PDO::FETCH_ASSOC)): ?>
+                    <div class="teacher-card">
+                        <div class="teacher-photo-section">
+                            <?php if(!empty($teacher_row['photo'])): ?>
+                                <img src="../uploads/teachers/<?php echo htmlspecialchars($teacher_row['photo']); ?>" 
+                                     alt="<?php echo htmlspecialchars($teacher_row['name']); ?>" 
+                                     class="teacher-photo"
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <div class="default-photo" style="display: none;">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            <?php else: ?>
+                                <div class="default-photo">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            <?php endif; ?>
                         </div>
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Email Address</label>
-                            <input type="email" class="form-control" id="email" name="email">
-                        </div>
-                        <div class="mb-3">
-                            <label for="phone" class="form-label">Phone Number</label>
-                            <input type="text" class="form-control" id="phone" name="phone">
-                        </div>
-                        <div class="alert alert-info">
-                            <small>
-                                <i class="fas fa-info-circle me-2"></i>
-                                Teacher will be automatically assigned to <?php echo $_SESSION['department']; ?> department.
-                            </small>
+                        
+                        <div class="teacher-info">
+                            <div class="teacher-name"><?php echo htmlspecialchars($teacher_row['name']); ?></div>
+                            
+                            <div class="teacher-status badge bg-<?php echo $teacher_row['status'] == 'active' ? 'success' : 'secondary'; ?>">
+                                <?php echo ucfirst($teacher_row['status']); ?>
+                            </div>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" name="add_teacher" class="btn btn-primary">Add Teacher</button>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <div class="empty-state">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <h5>No Teachers Found</h5>
+                        <p class="text-muted">No teachers are currently assigned to this department.</p>
                     </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Teacher Modal -->
-    <div class="modal fade" id="editTeacherModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Edit Teacher</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form method="POST">
-                    <input type="hidden" name="teacher_id" id="edit_teacher_id">
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="edit_name" class="form-label">Full Name *</label>
-                            <input type="text" class="form-control" id="edit_name" name="name" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="edit_email" class="form-label">Email Address</label>
-                            <input type="email" class="form-control" id="edit_email" name="email">
-                        </div>
-                        <div class="mb-3">
-                            <label for="edit_phone" class="form-label">Phone Number</label>
-                            <input type="text" class="form-control" id="edit_phone" name="phone">
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" name="update_teacher" class="btn btn-primary">Update Teacher</button>
-                    </div>
-                </form>
+                <?php endif; ?>
             </div>
         </div>
     </div>
 
     <?php include '../includes/footer.php'; ?>
-    
-    <script>
-        // Edit Teacher Modal
-        document.querySelectorAll('.edit-teacher').forEach(button => {
-            button.addEventListener('click', function() {
-                const teacherId = this.getAttribute('data-teacher-id');
-                const name = this.getAttribute('data-name');
-                const email = this.getAttribute('data-email');
-                const phone = this.getAttribute('data-phone');
-                
-                document.getElementById('edit_teacher_id').value = teacherId;
-                document.getElementById('edit_name').value = name;
-                document.getElementById('edit_email').value = email;
-                document.getElementById('edit_phone').value = phone;
-                
-                const editModal = new bootstrap.Modal(document.getElementById('editTeacherModal'));
-                editModal.show();
-            });
-        });
-
-        // Clear add modal when closed
-        document.getElementById('addTeacherModal').addEventListener('hidden.bs.modal', function () {
-            document.getElementById('name').value = '';
-            document.getElementById('email').value = '';
-            document.getElementById('phone').value = '';
-        });
-    </script>
 </body>
 </html>

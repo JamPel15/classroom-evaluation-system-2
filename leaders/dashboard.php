@@ -1,15 +1,19 @@
-// DEBUG: Show session role and stop execution
-
-if (isset($_SESSION['role'])) {
-    echo '<h2>DEBUG: $_SESSION["role"] = ' . htmlspecialchars($_SESSION['role']) . '</h2>';
-} else {
-    echo '<h2>DEBUG: $_SESSION["role"] is NOT SET</h2>';
-}
-exit;
-
 <?php
 require_once '../auth/session-check.php';
-if(!in_array($_SESSION['role'], ['president', 'vice_president'])) {
+
+// DEBUG: Show session role (development only). Uncomment the block below to enable.
+if (isset($_SESSION['role'])) {
+     echo '<h2>DEBUG: $_SESSION["role"] = ' . htmlspecialchars($_SESSION['role']) . '</h2>';
+ } else {
+     echo '<h2>DEBUG: $_SESSION["role"] is NOT SET</h2>';
+ }
+// Note: do not call exit here to avoid making the rest of the script unreachable.
+
+// Fix: Convert role to lowercase for consistent comparison
+$userRole = strtolower($_SESSION['role']);
+$allowedRoles = ['president', 'vice_president', 'vice president']; // Add variations if needed
+
+if(!in_array($userRole, $allowedRoles)) {
     header("Location: ../login.php");
     exit();
 }

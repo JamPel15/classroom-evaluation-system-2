@@ -28,26 +28,57 @@ if(isset($_SESSION['user_id'])) {
         }
         
         .login-body {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            background: url('smccnasipit_cover.jpg') no-repeat center center fixed;
+            background-size: cover;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            position: relative;
+        }
+        
+        /* Add blur effect to the background */
+        .login-body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('smccnasipit_cover.jpg') no-repeat center center fixed;
+            background-size: cover;
+            filter: blur(8px); /* Adjust blur intensity here */
+            z-index: 0;
+        }
+        
+        /* Add overlay for better readability */
+        .login-body::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4); /* Dark overlay for contrast */
+            z-index: 1;
         }
         
         .login-container {
             width: 100%;
-            max-width: 420px;
+            max-width: 490px;
             padding: 20px;
+            position: relative;
+            z-index: 2; /* Higher z-index to appear above blur and overlay */
         }
         
         .login-card {
             background: white;
             padding: 40px 30px;
-            border-radius: 15px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            border-radius: 10px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
             border: none;
+            backdrop-filter: blur(2px); /* Additional subtle blur on card */
         }
         
         .login-header {
@@ -85,7 +116,7 @@ if(isset($_SESSION['user_id'])) {
         }
         
         .btn-login {
-            background: linear-gradient(135deg, var(--secondary) 0%, #2980b9 100%);
+            background: #073b5eff;
             border: none;
             padding: 12px;
             font-weight: 600;
@@ -95,7 +126,7 @@ if(isset($_SESSION['user_id'])) {
         
         .btn-login:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+            box-shadow: 0 5px 15px #0a436aff;
         }
         
         .alert {
@@ -104,30 +135,25 @@ if(isset($_SESSION['user_id'])) {
             padding: 12px 15px;
         }
         
-        .system-info {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 20px;
+        .logo-container {
+            text-align: center;
+            margin-bottom: 20px;
         }
         
-        .system-info h5 {
-            margin-bottom: 15px;
-        }
-        
-        .system-info ul {
-            padding-left: 20px;
-            margin-bottom: 0;
-        }
-        
-        .system-info li {
-            margin-bottom: 8px;
+        .logo-image {
+            max-width: 130px;
+            height: auto;
+            filter: drop-shadow(0 5px 10px rgba(0,0,0,0.2));
         }
     </style>
 </head>
 <body class="login-body">
     <div class="login-container">
+        <!-- SMCC Logo -->
+        <div class="logo-container">
+            <img src="SMCCnewlogo.png" alt="SMCC Logo" class="logo-image">
+        </div>
+        
         <div class="login-card">
             <div class="login-header">
                 <h2><i class="fas fa-robot me-2"></i>AI Classroom Evaluation</h2>

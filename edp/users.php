@@ -1,14 +1,14 @@
 <?php
 $departments = [
-    'CTE' => 'College of Teacher Education',
-    
-    'CAS' => 'College of Arts and Sciences',
-    'CCJE' => 'College of Criminal Justice Education',
-    'CBM' => 'College of Business Management',
-    'CCIS' => 'College of Computing and Information Sciences',
-    'CTHM' => 'College of Tourism and Hospitality Management',
-    'BASIC ED' => 'BASIC ED (Nursery, Kindergarten, Elementary, Junior High School)',
-    'SHS' => 'Senior High School (SHS)'
+    'CTE' => '(CTE) College of Teacher Education',
+    'CAS' => '(CAS) College of Arts and Sciences',
+    'CCJE' => '(CCJE) College of Criminal Justice Education',
+    'CBM' => '(CBM) College of Business Management',
+    'CCIS' => '(CCIS) College of Computing and Information Sciences',
+    'CTHM' => '(CTHM) College of Tourism and Hospitality Management',
+    'ELEM' => '(ELEM) Elementary School)',
+    'JHS' => '(JHS) Junior High School)',
+    'SHS' => '(SHS) Senior High School'
 ];
 $selected_department = isset($_GET['department']) ? $_GET['department'] : '';
 require_once '../auth/session-check.php';
@@ -113,8 +113,8 @@ foreach ($roles as $role) {
         <div class="container-fluid">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h3>Manage Evaluators</h3>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEvaluatorModal">
-                    <i class="fas fa-plus me-2"></i>Add
+                <button class="btn btn-primary m-3" data-bs-toggle="modal" data-bs-target="#addEvaluatorModal">
+                    <i class="fas fa-plus me-2"></i>Add Evaluators
                 </button>
             </div>
 
