@@ -9,13 +9,68 @@ require_once '../config/database.php';
 require_once '../models/Teacher.php';
 
 $database = new Database();
-$database->getConnection();
-$db = $database->conn;
+$db = $database->getConnection();
 
 $teacher = new Teacher($db);
 
+// Handle teacher actions
+$action = $_GET['action'] ?? '';
+$success_message = '';
+$error_message = '';
+
+// Toggle teacher status (activate/deactivate)
+if ($_GET && isset($_GET['action']) && $_GET['action'] === 'toggle_status') {
+    $teacher_id = $_GET['teacher_id'] ?? '';
+    if (!empty($teacher_id)) {
+        if ($teacher->toggleStatus($teacher_id)) {
+            $success_message = "Teacher status updated successfully!";
+        } else {
+            $error_message = "Failed to update teacher status.";
+        }
+    }
+    // Redirect to avoid POST/GET issues
+    header("Location: teachers.php");
+    exit();
+}
+
+// Update evaluation schedule and room
+if ($_POST && isset($_POST['action']) && $_POST['action'] === 'update_schedule') {
+    $teacher_id = $_POST['teacher_id'] ?? '';
+    $schedule = $_POST['evaluation_schedule'] ?? '';
+    $room = $_POST['evaluation_room'] ?? '';
+    
+    if (!empty($teacher_id)) {
+        // Update using a query to add/update schedule and room info
+        $query = "UPDATE teachers SET evaluation_schedule = :schedule, evaluation_room = :room, updated_at = NOW() WHERE id = :id";
+        $stmt = $db->prepare($query);
+        $stmt->bindParam(':schedule', $schedule);
+        $stmt->bindParam(':room', $room);
+        $stmt->bindParam(':id', $teacher_id);
+        
+        if ($stmt->execute()) {
+            $success_message = "Evaluation schedule and room updated successfully!";
+        } else {
+            $error_message = "Failed to update schedule and room.";
+        }
+    } else {
+        $error_message = "Teacher ID is required.";
+    }
+}
+
 // Get teachers for current department
 $teachers = $teacher->getByDepartment($_SESSION['department']);
+
+// Get a single teacher for editing (AJAX)
+if (isset($_GET['get_teacher']) && isset($_GET['id'])) {
+    $teacher_data = $teacher->getById($_GET['id']);
+    header('Content-Type: application/json');
+    if ($teacher_data) {
+        echo json_encode(['success' => true, 'teacher' => $teacher_data]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Teacher not found']);
+    }
+    exit();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -106,6 +161,44 @@ $teachers = $teacher->getByDepartment($_SESSION['department']);
             text-align: center;
             padding: 60px 20px;
         }
+
+        .teacher-actions {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .teacher-actions .btn {
+            flex: 1;
+            min-width: 80px;
+            font-size: 0.75rem;
+            padding: 5px 10px;
+        }
+
+        .modal-body .form-group {
+            margin-bottom: 15px;
+        }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .modal-lg {
+            max-width: 600px;
+        }
+
+        .schedule-info {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            margin-top: 8px;
+        }
     </style>
 </head>
 <body>
@@ -117,18 +210,18 @@ $teachers = $teacher->getByDepartment($_SESSION['department']);
                 <h3>Teachers - <?php echo $_SESSION['department']; ?></h3>
             </div>
 
-            <?php if(isset($_SESSION['error'])): ?>
+            <?php if(!empty($error_message)): ?>
             <div class="alert alert-danger alert-dismissible fade show">
                 <i class="fas fa-exclamation-triangle me-2"></i>
-                <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
+                <?php echo $error_message; ?>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
             <?php endif; ?>
 
-            <?php if(isset($_SESSION['success'])): ?>
+            <?php if(!empty($success_message)): ?>
             <div class="alert alert-success alert-dismissible fade show">
                 <i class="fas fa-check-circle me-2"></i>
-                <?php echo $_SESSION['success']; unset($_SESSION['success']); ?>
+                <?php echo $success_message; ?>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
             <?php endif; ?>
@@ -157,8 +250,28 @@ $teachers = $teacher->getByDepartment($_SESSION['department']);
                         <div class="teacher-info">
                             <div class="teacher-name"><?php echo htmlspecialchars($teacher_row['name']); ?></div>
                             
-                            <div class="teacher-status badge bg-<?php echo $teacher_row['status'] == 'active' ? 'success' : 'secondary'; ?>">
+                            <div class="status-badge badge bg-<?php echo $teacher_row['status'] == 'active' ? 'success' : 'secondary'; ?>">
                                 <?php echo ucfirst($teacher_row['status']); ?>
+                            </div>
+
+                            <?php if(!empty($teacher_row['evaluation_schedule']) || !empty($teacher_row['evaluation_room'])): ?>
+                            <div class="schedule-info">
+                                <?php if(!empty($teacher_row['evaluation_schedule'])): ?>
+                                    <div><i class="fas fa-calendar me-2"></i><?php echo htmlspecialchars($teacher_row['evaluation_schedule']); ?></div>
+                                <?php endif; ?>
+                                <?php if(!empty($teacher_row['evaluation_room'])): ?>
+                                    <div><i class="fas fa-door-open me-2"></i><?php echo htmlspecialchars($teacher_row['evaluation_room']); ?></div>
+                                <?php endif; ?>
+                            </div>
+                            <?php endif; ?>
+
+                            <div class="teacher-actions">
+                                <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#scheduleModal" onclick="editSchedule(<?php echo $teacher_row['id']; ?>, '<?php echo htmlspecialchars($teacher_row['evaluation_schedule'] ?? ''); ?>', '<?php echo htmlspecialchars($teacher_row['evaluation_room'] ?? ''); ?>')">
+                                    <i class="fas fa-calendar"></i> Schedule
+                                </button>
+                                <a href="?action=toggle_status&teacher_id=<?php echo $teacher_row['id']; ?>" class="btn btn-sm btn-outline-<?php echo $teacher_row['status'] == 'active' ? 'warning' : 'success'; ?>" onclick="return confirm('Are you sure?');">
+                                    <i class="fas fa-<?php echo $teacher_row['status'] == 'active' ? 'ban' : 'check'; ?>"></i> <?php echo $teacher_row['status'] == 'active' ? 'Deactivate' : 'Activate'; ?>
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -175,5 +288,47 @@ $teachers = $teacher->getByDepartment($_SESSION['department']);
     </div>
 
     <?php include '../includes/footer.php'; ?>
+
+    <!-- Schedule and Room Modal -->
+    <div class="modal fade" id="scheduleModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Set Evaluation Schedule & Room</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" name="action" value="update_schedule">
+                        <input type="hidden" name="teacher_id" id="schedule_teacher_id">
+                        
+                        <div class="form-group">
+                            <label class="form-label">Evaluation Schedule <span class="text-danger">*</span></label>
+                            <input type="datetime-local" class="form-control" id="evaluation_schedule" name="evaluation_schedule" required placeholder="Select date and time">
+                            <small class="form-text text-muted">Date and time of the classroom observation/evaluation.</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Classroom/Room <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="evaluation_room" name="evaluation_room" required placeholder="e.g., Room 101, Laboratory B, Building A - Room 303">
+                            <small class="form-text text-muted">Location where the evaluation will take place.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Schedule & Room</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function editSchedule(teacherId, schedule, room) {
+            document.getElementById('schedule_teacher_id').value = teacherId;
+            document.getElementById('evaluation_schedule').value = schedule;
+            document.getElementById('evaluation_room').value = room;
+        }
+    </script>
 </body>
 </html>

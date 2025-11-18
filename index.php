@@ -11,6 +11,9 @@ if(isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
 	elseif(in_array($role, ['president', 'vice_president'])) {
 		header("Location: leaders/dashboard.php");
 	}
+	elseif($role === 'teacher') {
+		header("Location: teachers/dashboard.php");
+	}
 	else {
 		header("Location: admin/dashboard.php");
 	}

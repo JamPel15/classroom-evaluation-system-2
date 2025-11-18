@@ -31,32 +31,76 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             case 'create':
                 $role = $_POST['role'];
                 $department = '';
+                
                 // Only require department/category for these roles
                 if (in_array($role, ['dean', 'principal', 'subject_coordinator', 'chairperson'])) {
-                        $department = $_POST['department'] ?? ''; // Original line retained for context
+                    $department = $_POST['department'] ?? '';
                 }
-                    $departments = [
-                        'CTE' => 'College of Teacher Education',
-                        'CAS' => 'College of Arts and Sciences',
-                        'CCJE' => 'College of Criminal Justice Education',
-                        'CBM' => 'College of Business Management',
-                        'CCIS' => 'College of Computing and Information Sciences',
-                        'CTHM' => 'College of Tourism and Hospitality Management',
-                        'BASIC_ED' => 'BASIC ED (Nursery, Kindergarten, Elementary, Junior High School)',
-                        'SHS' => 'Senior High School (SHS)'
-                    ];
-                    // If BASIC ED is selected, always store as 'BASIC ED' in the database
-                    if ($department === 'BASIC_ED') {
-                        $department = 'BASIC ED';
-                    }
-                    $data = [
-                        'username' => $_POST['username'],
-                        'password' => $_POST['password'],
-                        'name' => $_POST['name'],
-                        'role' => $role,
-                        'department' => $department
-                    ];
+                // Teachers may also have a department
+                if ($role === 'teacher') {
+                    $department = $_POST['department'] ?? '';
+                }
+                
+                $departments = [
+                    'CTE' => 'College of Teacher Education',
+                    'CAS' => 'College of Arts and Sciences',
+                    'CCJE' => 'College of Criminal Justice Education',
+                    'CBM' => 'College of Business Management',
+                    'CCIS' => 'College of Computing and Information Sciences',
+                    'CTHM' => 'College of Tourism and Hospitality Management',
+                    'BASIC_ED' => 'BASIC ED (Nursery, Kindergarten, Elementary, Junior High School)',
+                    'SHS' => 'Senior High School (SHS)'
+                ];
+                // If BASIC ED is selected, always store as 'BASIC ED' in the database
+                if ($department === 'BASIC_ED') {
+                    $department = 'BASIC ED';
+                }
+                
+                $data = [
+                    'username' => $_POST['username'],
+                    'password' => $_POST['password'],
+                    'name' => $_POST['name'],
+                    'role' => $role,
+                    'department' => $department
+                ];
+                
                 $createResult = $user->create($data);
+                
+                // If creating a teacher account, also create/update the teacher record
+                if ($role === 'teacher' && $createResult === true) {
+                    // Get the newly created user ID
+                    $query = "SELECT id FROM users WHERE username = :username";
+                    $stmt = $db->prepare($query);
+                    $stmt->bindParam(':username', $_POST['username']);
+                    $stmt->execute();
+                    $new_user = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    // Check if teacher exists, if not create
+                    $check_teacher_query = "SELECT id FROM teachers WHERE name = :name AND department = :department";
+                    $check_teacher_stmt = $db->prepare($check_teacher_query);
+                    $check_teacher_stmt->bindParam(':name', $_POST['name']);
+                    $check_teacher_stmt->bindParam(':department', $department);
+                    $check_teacher_stmt->execute();
+                    
+                    if ($check_teacher_stmt->rowCount() > 0) {
+                        // Update existing teacher with user_id
+                        $teacher_row = $check_teacher_stmt->fetch(PDO::FETCH_ASSOC);
+                        $update_query = "UPDATE teachers SET user_id = :user_id WHERE id = :teacher_id";
+                        $update_stmt = $db->prepare($update_query);
+                        $update_stmt->bindParam(':user_id', $new_user['id']);
+                        $update_stmt->bindParam(':teacher_id', $teacher_row['id']);
+                        $update_stmt->execute();
+                    } else {
+                        // Create new teacher record
+                        $insert_query = "INSERT INTO teachers (name, department, user_id, status) VALUES (:name, :department, :user_id, 'active')";
+                        $insert_stmt = $db->prepare($insert_query);
+                        $insert_stmt->bindParam(':name', $_POST['name']);
+                        $insert_stmt->bindParam(':department', $department);
+                        $insert_stmt->bindParam(':user_id', $new_user['id']);
+                        $insert_stmt->execute();
+                    }
+                }
+                
                 if($createResult === true) {
                     $_SESSION['success'] = ucfirst(str_replace('_',' ',$role)) . " account created successfully.";
                 } elseif($createResult === 'exists') {
@@ -112,10 +156,18 @@ foreach ($roles as $role) {
     <div class="main-content">
         <div class="container-fluid">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h3>Manage Evaluators</h3>
-                <button class="btn btn-primary m-3" data-bs-toggle="modal" data-bs-target="#addEvaluatorModal">
-                    <i class="fas fa-plus me-2"></i>Add Evaluators
-                </button>
+                <h3>Create User Accounts</h3>
+                <div>
+                    <button class="btn btn-primary m-3" data-bs-toggle="modal" data-bs-target="#addLeadershipModal">
+                        <i class="fas fa-plus me-2"></i>Add President/VP
+                    </button>
+                    <button class="btn btn-success m-3" data-bs-toggle="modal" data-bs-target="#addEvaluatorModal">
+                        <i class="fas fa-plus me-2"></i>Add Evaluators
+                    </button>
+                    <button class="btn btn-warning m-3" data-bs-toggle="modal" data-bs-target="#addTeacherModal">
+                        <i class="fas fa-plus me-2"></i>Add Teacher Account
+                    </button>
+                </div>
             </div>
 
             <?php if(isset($_SESSION['success'])): ?>
@@ -143,8 +195,12 @@ foreach ($roles as $role) {
                     <?php endforeach; ?>
                 </select>
             </form>
-            <div class="card">
 
+            <!-- Leadership Section (President & Vice President) -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-crown me-2"></i>Leadership</h5>
+                </div>
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-striped">
@@ -153,6 +209,61 @@ foreach ($roles as $role) {
                                     <th>#</th>
                                     <th>Name</th>
                                     <th>Username</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php 
+                                $counter = 1;
+                                $leadership_roles = ['president', 'vice_president'];
+                                foreach ($leadership_roles as $role) {
+                                    while($row = $evaluators[$role]->fetch(PDO::FETCH_ASSOC)):
+                                ?>
+                                <tr>
+                                    <td><?php echo $counter++; ?></td>
+                                    <td><?php echo htmlspecialchars($row['name']); ?></td>
+                                    <td><?php echo htmlspecialchars($row['username']); ?></td>
+                                    <td><?php echo ucfirst(str_replace('_', ' ', $row['role'])); ?></td>
+                                    <td>
+                                        <span class="badge bg-<?php echo $row['status'] == 'active' ? 'success' : 'secondary'; ?>">
+                                            <?php echo ucfirst($row['status']); ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="edit_evaluator.php?id=<?php echo $row['id']; ?>" class="btn btn-sm btn-info">Edit</a>
+                                        <form method="POST" style="display: inline;">
+                                            <input type="hidden" name="user_id" value="<?php echo $row['id']; ?>">
+                                            <input type="hidden" name="action" value="<?php echo $row['status'] == 'active' ? 'deactivate' : 'activate'; ?>">
+                                            <button type="submit" class="btn btn-sm btn-<?php echo $row['status'] == 'active' ? 'warning' : 'success'; ?>">
+                                                <i class="fas fa-<?php echo $row['status'] == 'active' ? 'user-slash' : 'user-check'; ?>"></i>
+                                                <?php echo $row['status'] == 'active' ? 'Deactivate' : 'Activate'; ?>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <?php endwhile; } ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Evaluators by Department Section -->
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>Evaluators (By Department)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Username</th>
+                                    <th>Role</th>
                                     <th>Department</th>
                                     <th>Status</th>
                                     <th>Actions</th>
@@ -161,13 +272,15 @@ foreach ($roles as $role) {
                             <tbody>
                                 <?php 
                                 $counter = 1;
-                                foreach ($roles as $role) {
+                                $evaluator_roles = ['dean', 'principal', 'subject_coordinator', 'chairperson'];
+                                foreach ($evaluator_roles as $role) {
                                     while($row = $evaluators[$role]->fetch(PDO::FETCH_ASSOC)):
                                 ?>
                                 <tr>
                                     <td><?php echo $counter++; ?></td>
                                     <td><?php echo htmlspecialchars($row['name']); ?></td>
                                     <td><?php echo htmlspecialchars($row['username']); ?></td>
+                                    <td><?php echo ucfirst(str_replace('_', ' ', $row['role'])); ?></td>
                                     <td><?php echo htmlspecialchars($row['department']); ?></td>
                                     <td>
                                         <span class="badge bg-<?php echo $row['status'] == 'active' ? 'success' : 'secondary'; ?>">
@@ -191,6 +304,110 @@ foreach ($roles as $role) {
                         </table>
                     </div>
                 </div>
+            </div>
+
+            <!-- Teachers Section -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-chalkboard-teacher me-2"></i>Teacher Accounts</h5>
+                </div>
+                <div class="card-body">
+                    <?php
+                    // Get teachers with user accounts
+                    $teacher_query = "SELECT t.*, u.username, u.status FROM teachers t 
+                                    LEFT JOIN users u ON t.user_id = u.id 
+                                    WHERE u.role = 'teacher' OR (u.role = 'teacher' AND u.id IS NOT NULL)
+                                    ORDER BY t.name ASC";
+                    $teacher_result = $db->query($teacher_query);
+                    ?>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Username</th>
+                                    <th>Department</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php 
+                                $counter = 1;
+                                while($row = $teacher_result->fetch(PDO::FETCH_ASSOC)):
+                                    if(!empty($row['username'])):
+                                ?>
+                                <tr>
+                                    <td><?php echo $counter++; ?></td>
+                                    <td><?php echo htmlspecialchars($row['name']); ?></td>
+                                    <td><?php echo htmlspecialchars($row['username']); ?></td>
+                                    <td><?php echo htmlspecialchars($row['department']); ?></td>
+                                    <td>
+                                        <span class="badge bg-<?php echo $row['status'] == 'active' ? 'success' : 'secondary'; ?>">
+                                            <?php echo ucfirst($row['status']); ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <form method="POST" style="display: inline;">
+                                            <input type="hidden" name="user_id" value="<?php echo $row['user_id']; ?>">
+                                            <input type="hidden" name="action" value="<?php echo $row['status'] == 'active' ? 'deactivate' : 'activate'; ?>">
+                                            <button type="submit" class="btn btn-sm btn-<?php echo $row['status'] == 'active' ? 'warning' : 'success'; ?>">
+                                                <i class="fas fa-<?php echo $row['status'] == 'active' ? 'user-slash' : 'user-check'; ?>"></i>
+                                                <?php echo $row['status'] == 'active' ? 'Deactivate' : 'Activate'; ?>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <?php 
+                                    endif;
+                                endwhile; 
+                                ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Leadership Modal -->
+    <div class="modal fade" id="addLeadershipModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Leadership</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" name="action" value="create">
+                        <div class="mb-3">
+                            <label class="form-label">Name</label>
+                            <input type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-control" name="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <input type="password" class="form-control" name="password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Role</label>
+                            <select class="form-select" name="role" required>
+                                <option value="">Select Role</option>
+                                <option value="president">President</option>
+                                <option value="vice_president">Vice President</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Account</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -222,18 +439,16 @@ foreach ($roles as $role) {
                             <label class="form-label">Role</label>
                             <select class="form-select" name="role" id="roleSelect" required>
                                 <option value="">Select Role</option>
-                                <option value="president">President</option>
-                                <option value="vice_president">Vice President</option>
                                 <option value="dean">Dean</option>
                                 <option value="principal">Principal</option>
                                 <option value="subject_coordinator">Subject Coordinator</option>
                                 <option value="chairperson">Chairperson</option>
                             </select>
                         </div>
-                        <div class="mb-3" id="departmentDiv" style="display:none;">
-                            <label class="form-label">Department/Category</label>
-                            <select class="form-select" name="department" id="departmentSelect">
-                                <option value="">Select Department/Category</option>
+                        <div class="mb-3">
+                            <label class="form-label">Department</label>
+                            <select class="form-select" name="department" id="departmentSelect" required>
+                                <option value="">Select Department</option>
                                 <?php
                                 $departments = [
                                     'CTE' => 'College of Teacher Education',
@@ -263,28 +478,62 @@ foreach ($roles as $role) {
         </div>
     </div>
 
+    <!-- Add Teacher Modal -->
+    <div class="modal fade" id="addTeacherModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Teacher Account</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" name="action" value="create">
+                        <input type="hidden" name="role" value="teacher">
+                        <div class="mb-3">
+                            <label class="form-label">Name</label>
+                            <input type="text" class="form-control" name="name" required placeholder="Enter teacher's full name">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-control" name="username" required placeholder="Enter username">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <input type="password" class="form-control" name="password" required placeholder="Enter password">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Department</label>
+                            <select class="form-select" name="department" required>
+                                <option value="">Select Department</option>
+                                <?php
+                                $dept_list = [
+                                    'CTE' => '(CTE) College of Teacher Education',
+                                    'CAS' => '(CAS) College of Arts and Sciences',
+                                    'CCJE' => '(CCJE) College of Criminal Justice Education',
+                                    'CBM' => '(CBM) College of Business Management',
+                                    'CCIS' => '(CCIS) College of Computing and Information Sciences',
+                                    'CTHM' => '(CTHM) College of Tourism and Hospitality Management',
+                                    'ELEM' => '(ELEM) Elementary School',
+                                    'JHS' => '(JHS) Junior High School',
+                                    'SHS' => '(SHS) Senior High School'
+                                ];
+                                foreach($dept_list as $key => $label): ?>
+                                    <option value="<?php echo $key; ?>"><?php echo $label; ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Teacher Account</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../assets/js/main.js"></script>
-    <script>
-    // Show/hide department/category based on role
-    document.addEventListener('DOMContentLoaded', function() {
-        var roleSelect = document.getElementById('roleSelect');
-        var departmentDiv = document.getElementById('departmentDiv');
-        var departmentSelect = document.getElementById('departmentSelect');
-        function toggleDepartment() {
-            var role = roleSelect.value;
-            if(role === 'dean' || role === 'principal' || role === 'subject_coordinator' || role === 'chairperson') {
-                departmentDiv.style.display = '';
-                departmentSelect.required = true;
-            } else {
-                departmentDiv.style.display = 'none';
-                departmentSelect.required = false;
-                departmentSelect.value = '';
-            }
-        }
-        roleSelect.addEventListener('change', toggleDepartment);
-        toggleDepartment();
-    });
-    </script>
 </body>
 </html>

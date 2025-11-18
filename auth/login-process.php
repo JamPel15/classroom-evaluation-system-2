@@ -29,6 +29,18 @@ if($user->login()) {
         $_SESSION['role'] = strtolower($user->role); // force lowercase for consistency
         $_SESSION['department'] = $user->department;
         $_SESSION['name'] = $user->name;
+        
+        // If teacher, get the teacher_id
+        if(strtolower($user->role) === 'teacher') {
+            $teacher_query = "SELECT id FROM teachers WHERE user_id = :user_id";
+            $teacher_stmt = $db->prepare($teacher_query);
+            $teacher_stmt->bindParam(':user_id', $user->id);
+            $teacher_stmt->execute();
+            if($teacher_stmt->rowCount() > 0) {
+                $teacher_data = $teacher_stmt->fetch(PDO::FETCH_ASSOC);
+                $_SESSION['teacher_id'] = $teacher_data['id'];
+            }
+        }
             
         // Log the login
         $log_query = "INSERT INTO audit_logs (user_id, action, description, ip_address) 
@@ -43,6 +55,8 @@ if($user->login()) {
             header("Location: ../edp/dashboard.php");
         } elseif(in_array($role, ['president', 'vice_president'])) {
             header("Location: ../leaders/dashboard.php");
+        } elseif($role === 'teacher') {
+            header("Location: ../teachers/dashboard.php");
         } elseif(in_array($role, ['dean', 'principal', 'chairperson', 'subject_coordinator'])) {
             header("Location: ../evaluators/dashboard.php");
         } else {

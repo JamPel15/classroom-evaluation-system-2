@@ -206,6 +206,7 @@ if(isset($_SESSION['user_id'])) {
                         <option value="principal">Principal</option>
                         <option value="chairperson">Chairperson</option>
                         <option value="subject_coordinator">Subject Coordinator</option>
+                        <option value="teacher">Teacher</option>
                     </select>
                 </div>
                 

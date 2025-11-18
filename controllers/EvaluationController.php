@@ -1,4 +1,21 @@
 <?php
+// Handle AJAX save draft requests (POST)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && $_GET['action'] === 'save_draft') {
+    require_once '../config/database.php';
+    require_once '../models/Evaluation.php';
+    require_once '../models/Teacher.php';
+    require_once '../controllers/AIController.php';
+    $db = (new Database())->getConnection();
+    $evalController = new EvaluationController($db);
+    session_start();
+    $evaluatorId = $_SESSION['user_id'] ?? null;
+    $postData = $_POST;
+    $result = $evalController->saveDraft($postData, $evaluatorId);
+    header('Content-Type: application/json');
+    echo json_encode($result);
+    exit();
+}
+
 if (isset($_GET['action']) && $_GET['action'] === 'get_teacher' && isset($_GET['id'])) {
     require_once '../config/database.php';
     require_once '../models/Teacher.php';
@@ -35,6 +52,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_teacher' && isset($_GET['
     exit();
 }
 
+// Ensure AIController is available when this controller is used directly
+if (!class_exists('AIController')) {
+    $aiPath = __DIR__ . '/AIController.php';
+    if (file_exists($aiPath)) {
+        require_once $aiPath;
+    }
+}
+
 class EvaluationController {
     private $db;
     private $evaluationModel;
@@ -48,6 +73,9 @@ class EvaluationController {
 
     public function submitEvaluation($postData, $evaluatorId) {
         try {
+            // Log submission for debugging
+            error_log("Submission: evaluatorId=$evaluatorId, teacher_id=" . ($postData['teacher_id'] ?? 'MISSING'));
+            
             // Start transaction
             $this->db->beginTransaction();
 
@@ -57,12 +85,13 @@ class EvaluationController {
             if (!$evaluationId) {
                 throw new Exception("Failed to create evaluation record");
             }
+            error_log("Created evaluation record: $evaluationId for teacher_id=" . ($postData['teacher_id'] ?? 'MISSING'));
 
             // 2. Save evaluation details (ratings and comments)
             $this->saveEvaluationDetails($evaluationId, $postData);
 
-            // 3. Calculate averages
-            $this->calculateAndUpdateAverages($evaluationId);
+            // 3. Calculate averages (use model method)
+            $this->evaluationModel->calculateAverages($evaluationId);
 
             // 4. Generate AI recommendations
             $this->aiController->generateRecommendations($evaluationId);
@@ -90,6 +119,19 @@ class EvaluationController {
     }
 
     private function createEvaluationRecord($data, $evaluatorId) {
+        // Ensure optional fields have sensible defaults to avoid SQL errors
+        $teacher_id = $data['teacher_id'] ?? null;
+        $academic_year = $data['academic_year'] ?? null;
+        $semester = $data['semester'] ?? null;
+        $subject_observed = $data['subject_observed'] ?? null;
+        $observation_time = $data['observation_time'] ?? null;
+        $observation_date = $data['observation_date'] ?? null;
+        $observation_type = $data['observation_type'] ?? null;
+        $seat_plan = isset($data['seat_plan']) ? $data['seat_plan'] : 0;
+        $course_syllabi = isset($data['course_syllabi']) ? $data['course_syllabi'] : 0;
+        $others_requirements = isset($data['others_requirements']) ? $data['others_requirements'] : 0;
+        $others_specify = $data['others_specify'] ?? '';
+
         $query = "INSERT INTO evaluations 
                   (teacher_id, evaluator_id, academic_year, semester, 
                    subject_observed, observation_time, observation_date, 
@@ -101,24 +143,25 @@ class EvaluationController {
                           :others_requirements, :others_specify, 'completed')";
 
         $stmt = $this->db->prepare($query);
-        
-        $stmt->bindParam(':teacher_id', $data['teacher_id']);
-        $stmt->bindParam(':evaluator_id', $evaluatorId);
-        $stmt->bindParam(':academic_year', $data['academic_year']);
-        $stmt->bindParam(':semester', $data['semester']);
-        $stmt->bindParam(':subject_observed', $data['subject_observed']);
-        $stmt->bindParam(':observation_time', $data['observation_time']);
-        $stmt->bindParam(':observation_date', $data['observation_date']);
-        $stmt->bindParam(':observation_type', $data['observation_type']);
-        $stmt->bindParam(':seat_plan', $data['seat_plan']);
-        $stmt->bindParam(':course_syllabi', $data['course_syllabi']);
-        $stmt->bindParam(':others_requirements', $data['others_requirements']);
-        $stmt->bindParam(':others_specify', $data['others_specify']);
+
+        $stmt->bindValue(':teacher_id', $teacher_id);
+        $stmt->bindValue(':evaluator_id', $evaluatorId);
+        $stmt->bindValue(':academic_year', $academic_year);
+        $stmt->bindValue(':semester', $semester);
+        $stmt->bindValue(':subject_observed', $subject_observed);
+        $stmt->bindValue(':observation_time', $observation_time);
+        $stmt->bindValue(':observation_date', $observation_date);
+        $stmt->bindValue(':observation_type', $observation_type);
+        $stmt->bindValue(':seat_plan', $seat_plan);
+        $stmt->bindValue(':course_syllabi', $course_syllabi);
+        $stmt->bindValue(':others_requirements', $others_requirements);
+        $stmt->bindValue(':others_specify', $others_specify);
 
         if ($stmt->execute()) {
             return $this->db->lastInsertId();
         }
-        return false;
+        $err = $stmt->errorInfo();
+        throw new Exception('DB Error creating evaluation record: ' . ($err[2] ?? json_encode($err)));
     }
 
     private function saveEvaluationDetails($evaluationId, $data) {
@@ -153,6 +196,7 @@ class EvaluationController {
         $criterionStmt->bindParam(':index', $index);
         $criterionStmt->execute();
         $criterion = $criterionStmt->fetch(PDO::FETCH_ASSOC);
+        $criterion_text = $criterion['criterion_text'] ?? '';
 
         $query = "INSERT INTO evaluation_details 
                   (evaluation_id, category, criterion_index, criterion_text, rating, comments) 
@@ -162,18 +206,91 @@ class EvaluationController {
         $stmt->bindParam(':evaluation_id', $evaluationId);
         $stmt->bindParam(':category', $category);
         $stmt->bindParam(':criterion_index', $index);
-        $stmt->bindParam(':criterion_text', $criterion['criterion_text']);
+        $stmt->bindParam(':criterion_text', $criterion_text);
         $stmt->bindParam(':rating', $rating);
         $stmt->bindParam(':comments', $comment);
 
-        return $stmt->execute();
+        if ($stmt->execute()) {
+            return true;
+        }
+        $err = $stmt->errorInfo();
+        throw new Exception('DB Error saving criterion: ' . ($err[2] ?? json_encode($err)));
     }
 
     private function calculateAndUpdateAverages($evaluationId) {
-        // Use the stored procedure
+        // Legacy: kept for backward compatibility. Prefer model->calculateAverages()
         $stmt = $this->db->prepare("CALL CalculateAverages(?)");
-        $stmt->execute([$evaluationId]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        try {
+            $stmt->execute([$evaluationId]);
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            // If stored procedure doesn't exist, fallback to model method
+            return $this->evaluationModel->calculateAverages($evaluationId);
+        }
+    }
+
+    // Save draft submission (used via AJAX)
+    public function saveDraft($postData, $evaluatorId) {
+        try {
+            $this->db->beginTransaction();
+
+            // Create evaluation with status 'draft'
+                // Prepare default values for optional draft fields
+                $teacher_id = $postData['teacher_id'] ?? null;
+                $academic_year = $postData['academic_year'] ?? null;
+                $semester = $postData['semester'] ?? null;
+                $subject_observed = $postData['subject_observed'] ?? null;
+                $observation_time = $postData['observation_time'] ?? null;
+                $observation_date = $postData['observation_date'] ?? null;
+                $observation_type = $postData['observation_type'] ?? null;
+                $seat_plan = isset($postData['seat_plan']) ? $postData['seat_plan'] : 0;
+                $course_syllabi = isset($postData['course_syllabi']) ? $postData['course_syllabi'] : 0;
+                $others_requirements = isset($postData['others_requirements']) ? $postData['others_requirements'] : 0;
+                $others_specify = $postData['others_specify'] ?? '';
+
+                $query = "INSERT INTO evaluations 
+                      (teacher_id, evaluator_id, academic_year, semester, 
+                       subject_observed, observation_time, observation_date, 
+                       observation_type, seat_plan, course_syllabi, 
+                       others_requirements, others_specify, status, created_at) 
+                      VALUES (:teacher_id, :evaluator_id, :academic_year, :semester, 
+                              :subject_observed, :observation_time, :observation_date, 
+                              :observation_type, :seat_plan, :course_syllabi, 
+                              :others_requirements, :others_specify, 'draft', NOW())";
+
+            $stmt = $this->db->prepare($query);
+            $stmt->bindValue(':teacher_id', $teacher_id);
+            $stmt->bindValue(':evaluator_id', $evaluatorId);
+            $stmt->bindValue(':academic_year', $academic_year);
+            $stmt->bindValue(':semester', $semester);
+            $stmt->bindValue(':subject_observed', $subject_observed);
+            $stmt->bindValue(':observation_time', $observation_time);
+            $stmt->bindValue(':observation_date', $observation_date);
+            $stmt->bindValue(':observation_type', $observation_type);
+            $stmt->bindValue(':seat_plan', $seat_plan);
+            $stmt->bindValue(':course_syllabi', $course_syllabi);
+            $stmt->bindValue(':others_requirements', $others_requirements);
+            $stmt->bindValue(':others_specify', $others_specify);
+
+            if (!$stmt->execute()) {
+                throw new Exception('Failed to create draft evaluation');
+            }
+
+            $evaluationId = $this->db->lastInsertId();
+
+            // Save details (ratings/comments) if provided
+            $this->saveEvaluationDetails($evaluationId, $postData);
+
+            // Update qualitative fields if present
+            $this->updateQualitativeData($evaluationId, $postData);
+
+            $this->db->commit();
+
+            return ['success' => true, 'evaluation_id' => $evaluationId];
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
     }
 
     private function updateQualitativeData($evaluationId, $data) {

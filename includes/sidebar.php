@@ -1,4 +1,4 @@
-    <!-- ...existing code... -->
+<!-- ...existing code... -->
     <!-- ...existing code... -->
 <nav class="sidebar">
     <div class="sidebar-header">
@@ -12,17 +12,13 @@
     <ul class="sidebar-nav">
         <li><a href="dashboard.php" class="nav-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
         <?php if($_SESSION['role'] == 'edp'): ?>
-            <li><a href="users.php" class="nav-link"><i class="fas fa-users"></i> Manage Evaluators</a></li>
-            <li><a href="teachers.php" class="nav-link"><i class="fas fa-chalkboard-teacher"></i> Manage Teachers</a></li>
-            <li><a href="deactivated_teachers.php" class="nav-link"><i class="fas fa-user-slash"></i> Deactivated Teachers</a></li>
-            <li><a href="deactivated_evaluators.php" class="nav-link"><i class="fas fa-user-slash"></i> Deactivated Evaluators</a></li>
+            <li><a href="../edp/users.php" class="nav-link"><i class="fas fa-user-plus"></i> Create User Accounts</a></li>
         <?php elseif($_SESSION['role'] == 'superadmin'): ?>
             <li><a href="users.php" class="nav-link"><i class="fas fa-users"></i> User Management</a></li>
             <li><a href="reports.php" class="nav-link"><i class="fas fa-chart-bar"></i> Reports</a></li>
         <?php elseif(in_array($_SESSION['role'], ['president', 'vice_president'])): ?>
-            <li><a href="../leaders/dashboard.php" class="nav-link"><i class="fas fa-user-tie"></i> Leaders Dashboard</a></li>
-            <li><a href="../evaluators/evaluation.php" class="nav-link"><i class="fas fa-clipboard-check"></i> Evaluation</a></li>
-            <li><a href="../leaders/dashboard.php" class="nav-link"><i class="fas fa-chalkboard-teacher"></i> Teachers</a></li>
+            <li><a href="../leaders/evaluation.php" class="nav-link"><i class="fas fa-clipboard-check"></i> Evaluation</a></li>
+            <li><a href="../leaders/teachers.php" class="nav-link"><i class="fas fa-chalkboard-teacher"></i> Teachers</a></li>
         <?php else: ?>
             <li><a href="evaluation.php" class="nav-link"><i class="fas fa-clipboard-check"></i> Evaluation</a></li>
             <li><a href="teachers.php" class="nav-link"><i class="fas fa-chalkboard-teacher"></i> Teachers</a></li>

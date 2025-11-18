@@ -17,39 +17,11 @@ $db = $database->getConnection();
 $teacher = new Teacher($db);
 $evaluation = new Evaluation($db);
 
-// Compute default academic year dynamically (e.g., 2025-2026 in late 2025)
-$currentYear = (int)date('Y');
-$currentMonth = (int)date('n');
-if ($currentMonth >= 7) {
-    $defaultAcademicYear = $currentYear . '-' . ($currentYear + 1);
-} else {
-    $defaultAcademicYear = ($currentYear - 1) . '-' . $currentYear;
-}
-
 // Presidents and Vice Presidents can evaluate across all departments
 if(in_array($_SESSION['role'], ['president', 'vice_president'])) {
     $teachers = $teacher->getAllTeachers('active');
 } else {
     $teachers = $teacher->getActiveByDepartment($_SESSION['department']);
-}
-
-// If teacher_id is provided via GET, load that teacher to preselect and open the form
-$preselect_teacher = null;
-if(isset($_GET['teacher_id']) && is_numeric($_GET['teacher_id'])) {
-    $preselect_teacher = $teacher->getById((int)$_GET['teacher_id']);
-    // Server-side guard: ensure the current user is authorized to evaluate this teacher
-    if ($preselect_teacher) {
-        // Presidents and Vice Presidents can evaluate all departments
-        if (!in_array($_SESSION['role'], ['president', 'vice_president'])) {
-            $teacher_dept = $preselect_teacher['department'] ?? null;
-            $user_dept = $_SESSION['department'] ?? null;
-            if ($teacher_dept !== $user_dept) {
-                // Not authorized to preselect this teacher; clear preselect and show a message
-                $_SESSION['error'] = "You are not authorized to evaluate that teacher.";
-                $preselect_teacher = null;
-            }
-        }
-    }
 }
 
 // Handle form submission
@@ -59,10 +31,7 @@ if($_POST && isset($_POST['submit_evaluation'])) {
 
     if($result['success']) {
         $_SESSION['success'] = "Evaluation submitted successfully!";
-        // Redirect to reports with the teacher filter and academic year so the new record is visible
-        $ay = urlencode($_POST['academic_year'] ?? '');
-        $tid = urlencode($_POST['teacher_id'] ?? '');
-        header("Location: ../evaluators/reports.php?teacher_id={$tid}&academic_year={$ay}");
+        header("Location: dashboard.php");
         exit();
     } else {
         $_SESSION['error'] = "Error submitting evaluation: " . $result['message'];
@@ -76,6 +45,7 @@ if($_POST && isset($_POST['submit_evaluation'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Classroom Evaluation - AI Classroom Evaluation</title>
     <?php include '../includes/header.php'; ?>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 </head>
 <body>
     <?php include '../includes/sidebar.php'; ?>
@@ -84,11 +54,6 @@ if($_POST && isset($_POST['submit_evaluation'])) {
         <div class="container-fluid">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h3>Classroom Evaluation</h3>
-                <div>
-                    <button class="btn btn-secondary" id="backToTeachers">
-                        <i class="fas fa-arrow-left me-2"></i> Back to Teachers
-                    </button>
-                </div>
             </div>
 
             <?php if(isset($_SESSION['error'])): ?>
@@ -115,7 +80,7 @@ if($_POST && isset($_POST['submit_evaluation'])) {
                                     <p class="mb-0 text-muted"><?php echo htmlspecialchars($teacher_row['department']); ?></p>
                                 </div>
                                 <div>
-                                    <span class="badge bg-success">Active</span>
+                                    <span class="badge bg-success p-2">Evaluate this teacher</span>
                                     <i class="fas fa-chevron-right ms-2"></i>
                                 </div>
                             </div>
@@ -142,8 +107,16 @@ if($_POST && isset($_POST['submit_evaluation'])) {
                     
                     <div class="card">
                         <div class="card-header">
-                            <h5 class="mb-0">CLASSROOM EVALUATION FORM</h5>
+                                <h5 class="mb-0 text-center">CLASSROOM EVALUATION FORM</h5>
+                            <div class="row">
+                                <div class="col-12 text-start">
+                                    <a href="evaluation.php" class="btn btn-secondary">
+                                        <i class="bi bi-arrow-left"></i> Back
+                                    </a>
+                                </div>
+                            </div>
                         </div>
+
                         <div class="card-body">
                             <!-- PART 1: Faculty Information -->
                             <div class="evaluation-section">
@@ -155,7 +128,7 @@ if($_POST && isset($_POST['submit_evaluation'])) {
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label">Academic Year:</label>
-                                        <input type="text" class="form-control" id="academicYear" name="academic_year" value="<?php echo htmlspecialchars($defaultAcademicYear); ?>" required>
+                                        <input type="text" class="form-control" id="academicYear" name="academic_year" value="2023-2024" required>
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label">Semester:</label>
@@ -571,29 +544,63 @@ if($_POST && isset($_POST['submit_evaluation'])) {
                                         </div>
                                     </div>
                                 </div>
-                                
+
+                                <div class="d-flex justify-content-center">
+                                    <button type="button" class="btn" style="color: white; background-color: #31b5c9ff;">
+                                        <i class="fas fa-magic me-2"></i> Generate AI Recommendation
+                                    </button>
+                                </div>
 
                                 
                                 <!-- Strengths and Areas for Improvement -->
                                 <div class="row mt-4">
                                     <div class="col-md-6">
-                                        <label class="form-label">STRENGTHS</label>
-                                        <textarea class="form-control" id="strengths" name="strengths" rows="3" placeholder="List the teacher's strengths observed during the evaluation"></textarea>
+                                        <div class="input-group">
+                                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-color: #ccc;">
+                                                STRENGTHS:
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item">*AI COMMENTS*</a></li>
+                                            </ul>
+                                            <textarea class="form-control" id="strengths" name="strengths" rows="3" placeholder="List the teacher's strengths observed during the evaluation"></textarea>
+                                        </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label">AREAS FOR IMPROVEMENT</label>
-                                        <textarea class="form-control" id="improvementAreas" name="improvement_areas" rows="3" placeholder="List areas where the teacher can improve"></textarea>
+                                        <div class="input-group">
+                                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-color: #ccc;">
+                                                AREAS FOR IMPROVEMENT:
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item">*AI COMMENTS*</a></li>
+                                            </ul>
+                                            <textarea class="form-control" id="improvementAreas" name="improvement_areas" rows="3" placeholder="List areas where the teacher can improve"></textarea>
+                                        </div>
                                     </div>
                                 </div>
                                 
                                 <div class="row mt-3">
                                     <div class="col-md-6">
-                                        <label class="form-label">RECOMMENDATIONS</label>
-                                        <textarea class="form-control" id="recommendations" name="recommendations" rows="3" placeholder="Provide specific recommendations for improvement"></textarea>
+                                        <div class="input-group">
+                                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-color: #ccc;">
+                                                RECOMMENDATIONS:
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item">*AI COMMENTS*</a></li>
+                                            </ul>
+                                            <textarea class="form-control" id="recommendations" name="recommendations" rows="3" placeholder="Provide specific recommendations for improvement"></textarea>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">AGREEMENT</label>
-                                        <textarea class="form-control" id="agreement" name="agreement" rows="3" placeholder="State agreement or additional notes"></textarea>
+                                        <div class="col-md-6">
+                                            <div class="input-group">
+                                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-color: #ccc;">
+                                                    AGREEMENT:
+                                                </button>
+                                                <ul class="dropdown-menu">
+                                                    <li><a class="dropdown-item">*AI COMMENTS*</a></li>
+                                                </ul>
+                                            <textarea class="form-control" id="agreement" name="agreement" rows="3" placeholder="State agreement or additional notes"></textarea>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -1087,34 +1094,6 @@ if($_POST && isset($_POST['submit_evaluation'])) {
         document.addEventListener('DOMContentLoaded', function() {
             initializeTeacherSelection();
             setupTeacherSearch();
-
-            <?php if(isset($preselect_teacher) && $preselect_teacher): ?>
-            // Preselect teacher passed from server and open the evaluation form
-            (function() {
-                var teacher = <?php echo json_encode($preselect_teacher); ?>;
-                // Try to find the teacher item in the list and trigger click
-                var teacherItem = document.querySelector('.teacher-item[data-teacher-id="' + teacher.id + '"]');
-                if (teacherItem) {
-                    teacherItem.click();
-                } else {
-                    // If not found in the list (e.g., different query), populate form fields directly
-                    var selectionCard = document.getElementById('teacherSelection');
-                    var formContainer = document.getElementById('evaluationFormContainer');
-                    if (selectionCard && formContainer) {
-                        selectionCard.classList.add('d-none');
-                        formContainer.classList.remove('d-none');
-                    }
-                    var selectedInput = document.getElementById('selected_teacher_id');
-                    if (selectedInput) selectedInput.value = teacher.id;
-                    var facultyInput = document.getElementById('facultyName');
-                    if (facultyInput) facultyInput.value = teacher.name;
-                    var deptInput = document.getElementById('department');
-                    if (deptInput) deptInput.value = teacher.department;
-                    // Initialize form behaviors
-                    initializeEvaluationForm();
-                }
-            })();
-            <?php endif; ?>
         });
     </script>
 </body>

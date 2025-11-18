@@ -103,6 +103,7 @@ if($_POST && isset($_POST['submit_evaluation'])) {
             <!-- Evaluation Form -->
             <div id="evaluationFormContainer" class="d-none">
                 <form id="evaluationForm" method="POST">
+                    <input type="hidden" id="draft_evaluation_id" name="evaluation_id" value="">
                     <input type="hidden" name="teacher_id" id="selected_teacher_id">
                     
                     <div class="card">
@@ -723,16 +724,21 @@ if($_POST && isset($_POST['submit_evaluation'])) {
                 });
             });
 
-            // Back to teachers button
-            document.getElementById('backToTeachers').addEventListener('click', function() {
-                showTeacherSelection();
-            });
+            // Back to teachers button (guard in case element is not present)
+            const backBtn = document.getElementById('backToTeachers');
+            if (backBtn) {
+                backBtn.addEventListener('click', function() {
+                    showTeacherSelection();
+                });
+            }
 
             // Rating change listeners
             document.addEventListener('change', function(e) {
-                if (e.target.type === 'radio' && e.target.name.includes('communications') || 
-                    e.target.name.includes('management') || 
-                    e.target.name.includes('assessment')) {
+                if (e.target && e.target.type === 'radio' && (
+                    e.target.name.includes('communications') ||
+                    e.target.name.includes('management') ||
+                    e.target.name.includes('assessment')
+                )) {
                     calculateAverages();
                 }
             });
@@ -858,20 +864,38 @@ if($_POST && isset($_POST['submit_evaluation'])) {
 
         function saveEvaluationDraft() {
             if (validateForm(true)) {
-                if (confirm('Save evaluation as draft? You can continue and submit later.')) {
-                    // Show loading state
-                    const saveBtn = document.getElementById('saveDraft');
-                    const originalText = saveBtn.innerHTML;
-                    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
-                    saveBtn.disabled = true;
-                    
-                    // Simulate API call
-                    setTimeout(() => {
+                if (!confirm('Save evaluation as draft? You can continue and submit later.')) return;
+
+                const saveBtn = document.getElementById('saveDraft');
+                const originalText = saveBtn.innerHTML;
+                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+                saveBtn.disabled = true;
+
+                const payload = getFormData();
+
+                // Send POST to controller to save draft
+                fetch('../controllers/EvaluationController.php?action=save_draft', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams(flattenObject(payload)).toString()
+                }).then(res => res.json()).then(data => {
+                    if (data.success) {
                         alert('Draft saved successfully! You can continue editing or submit later.');
-                        saveBtn.innerHTML = originalText;
-                        saveBtn.disabled = false;
-                    }, 1000);
-                }
+                        // Store returned evaluation_id for future reference (resume/edit)
+                        if (data.evaluation_id) {
+                            const draftInput = document.getElementById('draft_evaluation_id');
+                            if (draftInput) draftInput.value = data.evaluation_id;
+                        }
+                    } else {
+                        alert('Failed to save draft: ' + (data.message || 'Unknown error'));
+                    }
+                }).catch(err => {
+                    console.error(err);
+                    alert('Error saving draft. See console for details.');
+                }).finally(() => {
+                    saveBtn.innerHTML = originalText;
+                    saveBtn.disabled = false;
+                });
             } else {
                 alert('Please complete all required ratings before saving draft.');
             }
@@ -887,50 +911,163 @@ if($_POST && isset($_POST['submit_evaluation'])) {
                 return;
             }
             
-            if (confirm(`Generate PDF report for ${teacherName}?\nOverall Rating: ${overallRating} (${totalAverage})`)) {
-                // Show loading state
-                const pdfBtn = document.getElementById('downloadPDF');
-                const originalText = pdfBtn.innerHTML;
-                pdfBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating PDF...';
-                pdfBtn.disabled = true;
-                
-                // Simulate PDF generation
-                setTimeout(() => {
-                    alert(`PDF report for "${teacherName}" has been generated!\n\nIn a real implementation, this would:\n• Create a formatted PDF document\n• Include all evaluation data and ratings\n• Add AI recommendations\n• Download automatically`);
-                    
+            if (!confirm(`Generate PDF report for ${teacherName}?\nOverall Rating: ${overallRating} (${totalAverage})`)) return;
+
+            const pdfBtn = document.getElementById('downloadPDF');
+            const originalText = pdfBtn.innerHTML;
+            pdfBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating PDF...';
+            pdfBtn.disabled = true;
+
+            const data = getFormData();
+
+            // Build a simple HTML report for the evaluation
+            const container = document.createElement('div');
+            container.style.padding = '20px';
+            container.style.fontFamily = 'Arial, sans-serif';
+
+            const title = document.createElement('h2');
+            title.textContent = 'Classroom Evaluation Report';
+            container.appendChild(title);
+
+            const meta = document.createElement('div');
+            meta.innerHTML = `
+                <p><strong>Teacher:</strong> ${escapeHtml(data.faculty_name || '')}</p>
+                <p><strong>Department:</strong> ${escapeHtml(data.department || '')}</p>
+                <p><strong>Subject/Time:</strong> ${escapeHtml(data.subject_observed || '')}</p>
+                <p><strong>Date of Observation:</strong> ${escapeHtml(data.observation_date || '')}</p>
+                <p><strong>Rater:</strong> ${escapeHtml(data.rater_signature || '')} &nbsp; <strong>Rater Date:</strong> ${escapeHtml(data.rater_date || '')}</p>
+            `;
+            container.appendChild(meta);
+
+            const averagesDiv = document.createElement('div');
+            averagesDiv.innerHTML = `
+                <h4>Averages</h4>
+                <p>Communications: ${data.averages.communications}</p>
+                <p>Management: ${data.averages.management}</p>
+                <p>Assessment: ${data.averages.assessment}</p>
+                <p><strong>Overall:</strong> ${data.averages.overall}</p>
+            `;
+            container.appendChild(averagesDiv);
+
+            const sections = document.createElement('div');
+            sections.innerHTML = `
+                <h4>Strengths</h4>
+                <p>${escapeHtml(data.strengths || '')}</p>
+                <h4>Areas for Improvement</h4>
+                <p>${escapeHtml(data.improvement_areas || '')}</p>
+                <h4>Recommendations</h4>
+                <p>${escapeHtml(data.recommendations || '')}</p>
+            `;
+            container.appendChild(sections);
+
+            // Add ratings tables for each category
+            const addRatingsTable = (categoryName, ratingsObj) => {
+                const heading = document.createElement('h4');
+                heading.textContent = categoryName;
+                container.appendChild(heading);
+
+                const table = document.createElement('table');
+                table.style.width = '100%';
+                table.style.borderCollapse = 'collapse';
+                table.innerHTML = '<thead><tr><th style="border:1px solid #ddd;padding:8px;text-align:left;">Item</th><th style="border:1px solid #ddd;padding:8px;">Rating</th><th style="border:1px solid #ddd;padding:8px;">Comment</th></tr></thead>';
+                const tbody = document.createElement('tbody');
+
+                const keys = Object.keys(ratingsObj || {});
+                keys.forEach(k => {
+                    const r = ratingsObj[k];
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td style="border:1px solid #ddd;padding:8px;">${escapeHtml((r.label || ('Item ' + k)).toString())}</td>
+                        <td style="border:1px solid #ddd;padding:8px;text-align:center;">${escapeHtml(r.rating || '')}</td>
+                        <td style="border:1px solid #ddd;padding:8px;">${escapeHtml(r.comment || '')}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                table.appendChild(tbody);
+                container.appendChild(table);
+            };
+
+            // For labels we don't have descriptive text; use index as placeholder
+            addRatingsTable('Communications Competence', data.ratings.communications);
+            addRatingsTable('Management and Presentation', data.ratings.management);
+            addRatingsTable("Assessment of Students' Learning", data.ratings.assessment);
+
+            // Ensure html2pdf is loaded, then generate PDF
+            function generate() {
+                const opt = {
+                    margin:       10,
+                    filename:     `${(data.faculty_name || 'evaluation').replace(/\s+/g, '_')}_report.pdf`,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2 },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+
+                // Use html2pdf
+                html2pdf().set(opt).from(container).save().then(() => {
                     pdfBtn.innerHTML = originalText;
                     pdfBtn.disabled = false;
-                    
-                    // In real implementation, you would trigger actual PDF download
-                    // window.open('../controllers/export.php?type=pdf&evaluation_data=' + encodeURIComponent(JSON.stringify(getFormData())), '_blank');
-                }, 1500);
+                }).catch(err => {
+                    console.error(err);
+                    alert('Failed to generate PDF. See console for details.');
+                    pdfBtn.innerHTML = originalText;
+                    pdfBtn.disabled = false;
+                });
+            }
+
+            if (typeof html2pdf === 'undefined') {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js';
+                script.onload = generate;
+                script.onerror = () => {
+                    alert('Failed to load PDF library. Check your internet connection.');
+                    pdfBtn.innerHTML = originalText;
+                    pdfBtn.disabled = false;
+                };
+                document.head.appendChild(script);
+            } else {
+                generate();
             }
         }
 
         function validateForm(isDraft = false) {
             let isValid = true;
-            const requiredFields = document.querySelectorAll('[required]');
             const errorFields = [];
-            
-            // Check required fields
-            requiredFields.forEach(field => {
-                if (!field.value.trim()) {
-                    field.classList.add('is-invalid');
-                    errorFields.push(field.name || field.id);
-                    isValid = false;
-                } else {
-                    field.classList.remove('is-invalid');
-                }
-            });
-            
-            // Check if at least some ratings are provided (for draft, require at least one category)
+
             if (!isDraft) {
+                const requiredFields = document.querySelectorAll('[required]');
+                // Check required fields
+                requiredFields.forEach(field => {
+                    if (!field.value.trim()) {
+                        field.classList.add('is-invalid');
+                        errorFields.push(field.name || field.id);
+                        isValid = false;
+                    } else {
+                        field.classList.remove('is-invalid');
+                    }
+                });
+
+                // Check if at least some ratings are provided
                 const communicationsRatings = document.querySelectorAll('input[name^="communications"]:checked');
                 const managementRatings = document.querySelectorAll('input[name^="management"]:checked');
                 const assessmentRatings = document.querySelectorAll('input[name^="assessment"]:checked');
-                
+
                 if (communicationsRatings.length === 0 && managementRatings.length === 0 && assessmentRatings.length === 0) {
                     alert('Please provide ratings for at least one evaluation category.');
+                    isValid = false;
+                }
+            } else {
+                // Draft mode: be permissive — require at least some meaningful content (one rating or some text)
+                const communicationsRatings = document.querySelectorAll('input[name^="communications"]:checked');
+                const managementRatings = document.querySelectorAll('input[name^="management"]:checked');
+                const assessmentRatings = document.querySelectorAll('input[name^="assessment"]:checked');
+                const strengths = document.getElementById('strengths').value.trim();
+                const improvements = document.getElementById('improvementAreas').value.trim();
+                const recommendations = document.getElementById('recommendations').value.trim();
+                const facultyName = document.getElementById('facultyName').value.trim();
+
+                if (communicationsRatings.length === 0 && managementRatings.length === 0 && assessmentRatings.length === 0 && !strengths && !improvements && !recommendations && !facultyName) {
+                    alert('Please provide at least one rating or some notes before saving a draft.');
                     isValid = false;
                 }
             }
@@ -1015,6 +1152,43 @@ if($_POST && isset($_POST['submit_evaluation'])) {
             formData.averages = averages;
             
             return formData;
+        }
+
+        // Escape HTML for safe insertion into generated report
+        function escapeHtml(str) {
+            if (!str && str !== 0) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // Flatten nested objects to key/value pairs for form POST
+        function flattenObject(obj, prefix = '') {
+            const pairs = {};
+
+            for (const key in obj) {
+                if (!Object.prototype.hasOwnProperty.call(obj, key)) continue;
+                const value = obj[key];
+                const pref = prefix ? `${prefix}[${key}]` : key;
+
+                if (value === null || value === undefined) {
+                    pairs[pref] = '';
+                } else if (typeof value === 'object' && !(value instanceof Date)) {
+                    const nested = flattenObject(value, pref);
+                    for (const nKey in nested) {
+                        if (Object.prototype.hasOwnProperty.call(nested, nKey)) {
+                            pairs[nKey] = nested[nKey];
+                        }
+                    }
+                } else {
+                    pairs[pref] = value;
+                }
+            }
+
+            return pairs;
         }
 
         // Form submission handler
