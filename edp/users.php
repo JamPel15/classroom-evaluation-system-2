@@ -199,8 +199,8 @@ foreach ($roles as $role) {
             <!-- Leadership Section (President & Vice President) -->
             <div class="card mb-4">
                 <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fas fa-crown me-2"></i>Leadership</h5>
-                </div>
+                    <h5 class="mb-0"><i class="fas fa-crown me-2"></i>President/VicePresident</h5>
+                </div> 
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-striped">
