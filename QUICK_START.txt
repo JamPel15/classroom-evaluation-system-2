@@ -1,0 +1,235 @@
+TEACHER ACCOUNT SYSTEM - QUICK START GUIDE
+═══════════════════════════════════════════════════════════════
+
+✓ SETUP COMPLETE - 27 teacher accounts created and ready to use!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEACHER LOGIN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Go to: login.php
+2. Enter Username: (e.g., kbarrera1)
+3. Select Role: Teacher
+4. Enter Password: (provided when account was created)
+5. Click Login
+
+Sample usernames: kbarrera1, slim2, dlim3, preyes4, ranciano5
+(See VERIFY_TEACHER_SYSTEM.php for complete list)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEACHER DASHBOARD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+After login, teachers see:
+
+┌─────────────────────────────────────────┐
+│ My Dashboard - Welcome, [Teacher Name]! │
+├─────────────────────────────────────────┤
+│                                         │
+│ Department: [Teacher's Department]     │
+│ Status: Active                          │
+│                                         │
+│ ──────────────────────────────────────  │
+│ EVALUATION SCHEDULE & ROOM              │
+│ ──────────────────────────────────────  │
+│ 📅 Scheduled Date & Time: [Date/Time]  │
+│ 🚪 Room Location: [Room Number]        │
+│                                         │
+│ ──────────────────────────────────────  │
+│ MY EVALUATIONS                          │
+│ ──────────────────────────────────────  │
+│                                         │
+│ • Evaluation 1 [Completed] [View]      │
+│ • Evaluation 2 [Pending]               │
+│ • Evaluation 3 [Completed] [View]      │
+│                                         │
+└─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EVALUATOR - ASSIGN SCHEDULE & ROOM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For Evaluators (Dean, Principal, Chairperson, etc.):
+
+1. Go to: Evaluators Menu > Teachers
+2. Find the teacher in the list
+3. Click the blue "Schedule" button on their card
+4. In the modal dialog:
+   - Select Evaluation Date & Time (using date/time picker)
+   - Enter Room Location (e.g., "Room 101" or "Lab 3")
+   - Click "Save Schedule"
+5. Teacher sees it immediately on their dashboard!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VIEW DETAILED EVALUATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Teachers click "View Evaluation" to see:
+
+┌─────────────────────────────────────────────────┐
+│ Evaluation by [Evaluator Name]                  │
+│ Subject: [Course Name]                          │
+│ Date: [Evaluation Date]                         │
+├─────────────────────────────────────────────────┤
+│ COMMUNICATIONS                                  │
+│ • Clarity of Instruction           ★★★★☆ 4.0  │
+│ • Student Engagement               ★★★★☆ 4.0  │
+│ • Use of Effective Aids             ★★★☆☆ 3.0  │
+│ (with evaluator comments for each)             │
+│                                                 │
+│ MANAGEMENT/COURSE DESIGN                       │
+│ • Course Organization              ★★★★☆ 4.0  │
+│ • Syllabus Quality                 ★★★★☆ 4.0  │
+│ (with evaluator comments for each)             │
+│                                                 │
+│ ASSESSMENT/TESTING                             │
+│ • Test Design                      ★★★★☆ 4.0  │
+│ (with evaluator comments for each)             │
+│                                                 │
+│ OVERALL SCORE: 4.0 / 5.0                       │
+│ Print Evaluation [Button]                       │
+└─────────────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SYSTEM FILES & VERIFICATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Key files to review:
+
+✓ VERIFY_TEACHER_SYSTEM.php
+  → Verify system is set up correctly
+  → See sample teacher credentials
+  → Test login instructions
+
+✓ TEACHER_SYSTEM_README.md
+  → Complete documentation
+  → Technical specifications
+  → Troubleshooting guide
+
+✓ IMPLEMENTATION_SUMMARY.md
+  → What was implemented
+  → Features included
+  → Database changes
+
+✓ teachers/dashboard.php
+  → Teacher main page
+  → Shows schedule & evaluations
+  → Lists all received evaluations
+
+✓ teachers/view-evaluation.php
+  → Displays full evaluation details
+  → All ratings and comments
+  → Printable format
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FEATURES IMPLEMENTED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ Teacher login with username & password
+✓ Secure authentication system
+✓ View evaluation schedule (date/time)
+✓ View room location for evaluation
+✓ List all received evaluations
+✓ View detailed evaluation reports
+✓ See ratings for each criterion
+✓ Read evaluator comments
+✓ Print evaluations to PDF
+✓ Automatic evaluation sync when submitted
+✓ Role-based access control
+✓ Responsive mobile-friendly design
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEACHER ACCOUNTS CREATED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Total: 27 accounts created
+
+Examples:
+┌────────────────────────┬────────────┬──────────┐
+│ Teacher Name           │ Username   │ Dept     │
+├────────────────────────┼────────────┼──────────┤
+│ KENNETH BARRERA        │ kbarrera1  │ CAS      │
+│ SHAGNE LIM             │ slim2      │ CAS      │
+│ Dr. Robert Lim         │ dlim3      │ CTE      │
+│ Prof. Anna Reyes       │ preyes4    │ CTE      │
+│ Reyniemor Anciano      │ ranciano5  │ CCJE     │
+│ Prof. Lisa Garcia      │ pgarcia6   │ CBM      │
+│ CYRLYN CAGANDE         │ ccagande7  │ CAS      │
+│ Prof. Sarah Chen       │ pchen8     │ CTE      │
+│ Ronnel Falo            │ rfalo14    │ CCIS     │
+│ Reginald Ryan Gosela   │ rgosela15  │ CCIS     │
+│ (and 17 more...)       │            │          │
+└────────────────────────┴────────────┴──────────┘
+
+Run VERIFY_TEACHER_SYSTEM.php to see all usernames!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+COMMON TASKS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Task: Schedule an evaluation for a teacher
+Step 1: Evaluator > Teachers
+Step 2: Click "Schedule" button on teacher card
+Step 3: Set date/time and room
+Step 4: Save
+Result: Teacher sees schedule in their dashboard
+
+Task: Submit an evaluation
+Step 1: Evaluator > Evaluation
+Step 2: Select teacher
+Step 3: Fill out evaluation form
+Step 4: Submit
+Result: Teacher sees evaluation in their dashboard
+
+Task: View evaluation as teacher
+Step 1: Teacher > Login
+Step 2: Go to Teachers Dashboard
+Step 3: Click "View Evaluation" button
+Step 4: See all details, ratings, and comments
+Step 5: Print if needed
+
+Task: Reset teacher password
+Step 1: Go to generate_teacher_accounts.php
+Step 2: New passwords will be displayed for all teachers
+Step 3: Share with teacher
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECURITY NOTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ Passwords are hashed - never stored as plain text
+✓ Teachers can only see their own evaluations
+✓ Read-only access - teachers cannot modify data
+✓ Session-based authentication
+✓ SQL Injection prevention
+✓ Cross-site scripting (XSS) protection
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Problem: Teacher can't login
+Solution: Verify username format and "Teacher" role selected
+
+Problem: Schedule not showing
+Solution: Evaluator must click "Schedule" button to assign
+
+Problem: Evaluation not appearing
+Solution: Wait 1 minute and refresh page
+
+Problem: Print not working
+Solution: Use Chrome/Firefox and try Ctrl+P
+
+For detailed troubleshooting, see TEACHER_SYSTEM_README.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ System Ready! Teachers can now login and view their evaluations!
+
+Questions? Check:
+1. VERIFY_TEACHER_SYSTEM.php (quick check)
+2. TEACHER_SYSTEM_README.md (detailed guide)
+3. IMPLEMENTATION_SUMMARY.md (what changed)
+
+Last Updated: November 2025
+Status: ✓ FULLY OPERATIONAL

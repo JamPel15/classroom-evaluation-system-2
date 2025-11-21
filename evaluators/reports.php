@@ -34,7 +34,101 @@ $stats = $evaluation->getDepartmentStats($_SESSION['department'], $academic_year
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reports - <?php echo $_SESSION['department']; ?></title>
     <?php include '../includes/header.php'; ?>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .classroom-report {
+            background: white;
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+        .report-header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .report-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .report-subtitle {
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+        .report-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .report-table th {
+            background: #34495e;
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            border: 1px solid #ddd;
+        }
+        .report-table td {
+            padding: 10px 8px;
+            border: 1px solid #ddd;
+            vertical-align: top;
+        }
+        .report-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        .rating-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .rating-excellent { background: #28a745; color: white; }
+        .rating-very-satisfactory { background: #17a2b8; color: white; }
+        .rating-satisfactory { background: #ffc107; color: black; }
+        .rating-below-satisfactory { background: #fd7e14; color: white; }
+        .rating-needs-improvement { background: #dc3545; color: white; }
+        
+        .observation-notes {
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        .observation-notes ul {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+        .observation-notes li {
+            margin-bottom: 3px;
+        }
+        
+        .print-only {
+            display: none;
+        }
+        
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            .classroom-report {
+                border: none;
+                box-shadow: none;
+            }
+            .report-header {
+                background: #2c3e50 !important;
+                print-color-adjust: exact;
+            }
+            .report-table th {
+                background: #34495e !important;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
 </head>
 <body>
     <?php include '../includes/sidebar.php'; ?>
@@ -43,18 +137,21 @@ $stats = $evaluation->getDepartmentStats($_SESSION['department'], $academic_year
         <div class="container-fluid">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h3>Evaluation Reports - <?php echo $_SESSION['department']; ?></h3>
-                <div>
+                <div class="no-print">
                     <button class="btn btn-success me-2" onclick="exportToPDF()">
                         <i class="fas fa-file-pdf me-2"></i>Export PDF
                     </button>
-                    <button class="btn btn-primary" onclick="exportToExcel()">
+                    <button class="btn btn-primary me-2" onclick="window.print()">
+                        <i class="fas fa-print me-2"></i>Print Report
+                    </button>
+                    <button class="btn btn-info" onclick="exportToExcel()">
                         <i class="fas fa-file-excel me-2"></i>Export Excel
                     </button>
                 </div>
             </div>
 
             <!-- Filters -->
-            <div class="card mb-4">
+            <div class="card mb-4 no-print">
                 <div class="card-header">
                     <h5 class="mb-0">Report Filters</h5>
                 </div>
@@ -97,84 +194,176 @@ $stats = $evaluation->getDepartmentStats($_SESSION['department'], $academic_year
                 </div>
             </div>
 
-
-
-            <!-- Evaluations Table -->
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Evaluation Details</h5>
+            <!-- Classroom Observation Report -->
+            <div class="classroom-report">
+                <!-- Report Header -->
+                <div class="report-header">
+                    <div class="report-title">SAINT MICHAEL COLLEGE OF CARAGA</div>
+                    <div class="report-subtitle">Butuan City, Caraga Region</div>
+                    <div class="report-subtitle">Tel. Nos. (085) 343-2237 / (085) 285-3113</div>
+                    <div class="report-subtitle">www.smcccaraga.edu.ph</div>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped" id="reportTable">
-                            <thead>
-                                <tr>
-                                    <th>Teacher</th>
-                                    <th>Date</th>
-                                    <th>Subject</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if($evaluations->rowCount() > 0): ?>
+                
+                <!-- Report Info -->
+                <div class="report-info">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>CLASSROOM OBSERVATION REPORT</strong><br>
+                            <strong>College/Department:</strong> <?php echo $_SESSION['department']; ?>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <strong>Academic Year:</strong> <?php echo htmlspecialchars($academic_year); ?><br>
+                            <strong>Semester:</strong> <?php echo $semester ? htmlspecialchars($semester) : 'All'; ?>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Report Table -->
+                <div class="table-responsive">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th width="12%">Date</th>
+                                <th width="20%">Name of Teacher Observed</th>
+                                <th width="18%">Subject/Class Schedule</th>
+                                <th width="40%">Remarks/Observations</th>
+                                <th width="10%">Ratings</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if($evaluations->rowCount() > 0): ?>
                                 <?php while($eval = $evaluations->fetch(PDO::FETCH_ASSOC)): ?>
+                                <?php
+                                // Get rating text and class
+                                $rating_text = 'Needs Improvement';
+                                $rating_class = 'rating-needs-improvement';
+                                
+                                if($eval['overall_avg'] >= 4.6) {
+                                    $rating_text = 'Excellent';
+                                    $rating_class = 'rating-excellent';
+                                } elseif($eval['overall_avg'] >= 3.6) {
+                                    $rating_text = 'Very Satisfactory';
+                                    $rating_class = 'rating-very-satisfactory';
+                                } elseif($eval['overall_avg'] >= 2.9) {
+                                    $rating_text = 'Satisfactory';
+                                    $rating_class = 'rating-satisfactory';
+                                } elseif($eval['overall_avg'] >= 1.8) {
+                                    $rating_text = 'Below Satisfactory';
+                                    $rating_class = 'rating-below-satisfactory';
+                                }
+                                
+                                // Get evaluation details for observations
+                                $evaluation_details = $evaluation->getEvaluationDetails($eval['id']);
+                                $observations = [];
+                                
+                                while($detail = $evaluation_details->fetch(PDO::FETCH_ASSOC)) {
+                                    if (!empty($detail['comments'])) {
+                                        $observations[] = htmlspecialchars($detail['comments']);
+                                    }
+                                }
+                                
+                                // Get strengths and areas for improvement
+                                if (!empty($eval['strengths'])) {
+                                    $observations[] = "<strong>Strengths:</strong> " . htmlspecialchars($eval['strengths']);
+                                }
+                                if (!empty($eval['improvement_areas'])) {
+                                    $observations[] = "<strong>Areas for Improvement:</strong> " . htmlspecialchars($eval['improvement_areas']);
+                                }
+                                ?>
                                 <tr>
+                                    <td><?php echo date('F j, Y', strtotime($eval['observation_date'])); ?></td>
                                     <td><?php echo htmlspecialchars($eval['teacher_name']); ?></td>
-                                    <td><?php echo date('M j, Y', strtotime($eval['observation_date'])); ?></td>
-                                    <td><?php echo htmlspecialchars($eval['subject_observed']); ?></td>
                                     <td>
-                                        <span class="badge bg-<?php echo $eval['communications_avg'] >= 4.0 ? 'success' : ($eval['communications_avg'] >= 3.0 ? 'warning' : 'danger'); ?>">
-                                            <?php echo number_format($eval['communications_avg'], 1); ?>
+                                        <?php echo htmlspecialchars($eval['subject_observed']); ?><br>
+                                        <small class="text-muted"><?php echo htmlspecialchars($eval['observation_type']); ?> Observation</small>
+                                    </td>
+                                    <td>
+                                        <div class="observation-notes">
+                                            <?php if(!empty($observations)): ?>
+                                                <ul>
+                                                    <?php foreach($observations as $observation): ?>
+                                                        <li><?php echo $observation; ?></li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            <?php else: ?>
+                                                <em>No specific observations recorded.</em>
+                                            <?php endif; ?>
+                                            
+                                            <?php if(!empty($eval['recommendations'])): ?>
+                                                <div class="mt-2">
+                                                    <strong>Recommendations:</strong><br>
+                                                    <?php echo nl2br(htmlspecialchars($eval['recommendations'])); ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="rating-badge <?php echo $rating_class; ?>">
+                                            <?php echo $rating_text; ?>
                                         </span>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-<?php echo $eval['management_avg'] >= 4.0 ? 'success' : ($eval['management_avg'] >= 3.0 ? 'warning' : 'danger'); ?>">
-                                            <?php echo number_format($eval['management_avg'], 1); ?>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-<?php echo $eval['assessment_avg'] >= 4.0 ? 'success' : ($eval['assessment_avg'] >= 3.0 ? 'warning' : 'danger'); ?>">
-                                            <?php echo number_format($eval['assessment_avg'], 1); ?>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-<?php echo $eval['overall_avg'] >= 4.6 ? 'success' : 
-                                                             ($eval['overall_avg'] >= 3.6 ? 'primary' : 
-                                                             ($eval['overall_avg'] >= 2.9 ? 'info' : 'warning')); ?>">
-                                            <?php echo number_format($eval['overall_avg'], 1); ?>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <?php
-                                        $rating = 'Needs Improvement';
-                                        if($eval['overall_avg'] >= 4.6) $rating = 'Excellent';
-                                        elseif($eval['overall_avg'] >= 3.6) $rating = 'Very Satisfactory';
-                                        elseif($eval['overall_avg'] >= 2.9) $rating = 'Satisfactory';
-                                        elseif($eval['overall_avg'] >= 1.8) $rating = 'Below Satisfactory';
-                                        echo $rating;
-                                        ?>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-info"><?php echo $eval['ai_count']; ?></span>
-                                    </td>
-                                    <td>
-                                        <a href="evaluation-view.php?id=<?php echo $eval['id']; ?>" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-eye"></i> View
-                                        </a>
+                                        <div class="text-center mt-1">
+                                            <small><?php echo number_format($eval['overall_avg'], 1); ?></small>
+                                        </div>
                                     </td>
                                 </tr>
                                 <?php endwhile; ?>
-                                <?php else: ?>
+                            <?php else: ?>
                                 <tr>
-                                    <td colspan="10" class="text-center py-4">
-                                        <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                                    <td colspan="5" class="text-center py-4">
+                                        <i class="fas fa-clipboard-list fa-2x text-muted mb-3"></i>
                                         <h5>No Evaluation Data</h5>
-                                        <p class="text-muted">No evaluations found for the selected filters.</p>
+                                        <p class="text-muted">No classroom observations found for the selected filters.</p>
                                     </td>
                                 </tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Report Footer -->
+                <div class="report-info">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Generated on:</strong> <?php echo date('F j, Y'); ?>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <strong>Total Evaluations:</strong> <?php echo $stats['total_evaluations']; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Statistics (Hidden in Print) -->
+            <div class="card mt-4 no-print">
+                <div class="card-header">
+                    <h5 class="mb-0">Summary Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <h3 class="text-primary"><?php echo $stats['total_evaluations']; ?></h3>
+                                <p class="text-muted">Total Evaluations</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <h3 class="text-info"><?php echo number_format($stats['avg_rating'], 1); ?></h3>
+                                <p class="text-muted">Average Rating</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <h3 class="text-success"><?php echo $stats['teachers_evaluated']; ?></h3>
+                                <p class="text-muted">Teachers Evaluated</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <h3 class="text-warning"><?php echo $stats['ai_recommendations']; ?></h3>
+                                <p class="text-muted">AI Recommendations</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -184,75 +373,67 @@ $stats = $evaluation->getDepartmentStats($_SESSION['department'], $academic_year
     <?php include '../includes/footer.php'; ?>
 
     <script>
-        // Rating Distribution Chart
-        const ratingCtx = document.getElementById('ratingChart').getContext('2d');
-        const ratingChart = new Chart(ratingCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Excellent (4.6-5.0)', 'Very Satisfactory (3.6-4.5)', 'Satisfactory (2.9-3.5)', 'Below Satisfactory (1.8-2.5)', 'Needs Improvement (1.0-1.5)'],
-                datasets: [{
-                    data: [12, 8, 5, 2, 1], // Sample data - replace with actual data
-                    backgroundColor: [
-                        '#28a745',
-                        '#007bff',
-                        '#17a2b8',
-                        '#ffc107',
-                        '#dc3545'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
-            }
-        });
-
-        // Category Averages Chart
-        const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-        const categoryChart = new Chart(categoryCtx, {
-            type: 'bar',
-            data: {
-                labels: ['Communications', 'Management', 'Assessment'],
-                datasets: [{
-                    label: 'Average Rating',
-                    data: [4.2, 4.0, 3.8], // Sample data - replace with actual data
-                    backgroundColor: [
-                        'rgba(52, 152, 219, 0.8)',
-                        'rgba(155, 89, 182, 0.8)',
-                        'rgba(46, 204, 113, 0.8)'
-                    ],
-                    borderColor: [
-                        'rgb(52, 152, 219)',
-                        'rgb(155, 89, 182)',
-                        'rgb(46, 204, 113)'
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 5
-                    }
-                }
-            }
-        });
-
         // Export functions
         function exportToPDF() {
-            alert('PDF export functionality would be implemented here. This would generate a comprehensive report.');
-            // In a real implementation, this would call a PHP script to generate PDF
+            // Create a simplified version of the report for PDF export
+            const reportContent = document.querySelector('.classroom-report').cloneNode(true);
+            
+            // Remove no-print elements
+            const noPrintElements = reportContent.querySelectorAll('.no-print');
+            noPrintElements.forEach(el => el.remove());
+            
+            // Create a new window for printing
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Classroom Observation Report - <?php echo $_SESSION['department']; ?></title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .classroom-report { border: 1px solid #ddd; }
+                        .report-header { 
+                            background: #2c3e50; 
+                            color: white; 
+                            padding: 20px; 
+                            text-align: center; 
+                        }
+                        .report-title { font-size: 1.5rem; font-weight: bold; }
+                        .report-info { background: #f8f9fa; padding: 15px; border-bottom: 1px solid #ddd; }
+                        .report-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                        .report-table th { background: #34495e; color: white; padding: 10px; text-align: left; }
+                        .report-table td { padding: 8px; border: 1px solid #ddd; vertical-align: top; }
+                        .rating-badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+                        .rating-excellent { background: #28a745; color: white; }
+                        .rating-very-satisfactory { background: #17a2b8; color: white; }
+                        .rating-satisfactory { background: #ffc107; color: black; }
+                        .rating-below-satisfactory { background: #fd7e14; color: white; }
+                        @media print { body { margin: 0; } }
+                    </style>
+                </head>
+                <body>
+                    ${reportContent.outerHTML}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            
+            // Wait for content to load then print
+            printWindow.onload = function() {
+                printWindow.print();
+            };
         }
 
         function exportToExcel() {
-            alert('Excel export functionality would be implemented here. This would download an Excel file of the report.');
+            alert('Excel export functionality would generate a spreadsheet version of this report.');
             // In a real implementation, this would call a PHP script to generate Excel
+            // window.location.href = 'export_report.php?type=excel&academic_year=<?php echo $academic_year; ?>&semester=<?php echo $semester; ?>';
+        }
+
+        // Auto-print option for direct report generation
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('print') === 'true') {
+            window.print();
         }
     </script>
 </body>

@@ -199,7 +199,7 @@ foreach ($roles as $role) {
             <!-- Leadership Section (President & Vice President) -->
             <div class="card mb-4">
                 <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fas fa-crown me-2"></i>Leadership</h5>
+                    <h5 class="mb-0"><i class="fas fa-crown me-2"></i>President & Vice President</h5>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -308,7 +308,7 @@ foreach ($roles as $role) {
 
             <!-- Teachers Section -->
             <div class="card mb-4">
-                <div class="card-header bg-warning text-dark">
+                <div class="card-header bg-warning text-white">
                     <h5 class="mb-0"><i class="fas fa-chalkboard-teacher me-2"></i>Teacher Accounts</h5>
                 </div>
                 <div class="card-body">
