@@ -902,16 +902,18 @@ if($_POST && isset($_POST['submit_evaluation'])) {
         }
 
         function exportToPDF() {
-            const teacherName = document.getElementById('facultyName').value;
-            const overallRating = document.getElementById('ratingInterpretation').textContent;
-            const totalAverage = document.getElementById('totalAverage').textContent;
-            
-            if (!teacherName || teacherName === '') {
-                alert('Please select a teacher and complete the evaluation form first.');
-                return;
-            }
-            
-            if (!confirm(`Generate PDF report for ${teacherName}?\nOverall Rating: ${overallRating} (${totalAverage})`)) return;
+                const teacherId = document.getElementById('selected_teacher_id').value;
+                const teacherName = document.getElementById('facultyName').value;
+                
+                if (!teacherId || !teacherName) {
+                    alert('Please select a teacher and complete the evaluation form first.');
+                    return;
+                }
+                
+                if (!confirm(`Generate PDF evaluation form for ${teacherName}?`)) return;
+
+                // Use the export script for single evaluation form
+                window.open(`../controllers/export.php?type=form&evaluation_id=${teacherId}&report_type=single`, '_blank');
 
             const pdfBtn = document.getElementById('downloadPDF');
             const originalText = pdfBtn.innerHTML;

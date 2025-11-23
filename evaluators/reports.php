@@ -35,10 +35,16 @@ $stats = $evaluation->getDepartmentStats($_SESSION['department'], $academic_year
     <title>Reports - <?php echo $_SESSION['department']; ?></title>
     <?php include '../includes/header.php'; ?>
     <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+        }
         .classroom-report {
             background: white;
             border: 1px solid #ddd;
             margin-bottom: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
         }
         .report-header {
             background: #2c3e50;
@@ -104,8 +110,26 @@ $stats = $evaluation->getDepartmentStats($_SESSION['department'], $academic_year
             margin-bottom: 3px;
         }
         
+        .section-title {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-top: 10px;
+            margin-bottom: 5px;
+            font-size: 0.95rem;
+        }
+        
         .print-only {
             display: none;
+        }
+        
+        /* Responsive table for smaller screens */
+        @media (max-width: 1200px) {
+            .table-responsive {
+                overflow-x: auto;
+            }
+            .report-table {
+                min-width: 1000px;
+            }
         }
         
         @media print {
@@ -127,6 +151,28 @@ $stats = $evaluation->getDepartmentStats($_SESSION['department'], $academic_year
                 background: #34495e !important;
                 print-color-adjust: exact;
             }
+            .table-responsive {
+                overflow-x: visible;
+            }
+            .report-table {
+                min-width: auto;
+            }
+        }
+        
+        .stat-card {
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .filters-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            padding: 20px;
         }
     </style>
 </head>
@@ -137,73 +183,54 @@ $stats = $evaluation->getDepartmentStats($_SESSION['department'], $academic_year
         <div class="container-fluid">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h3>Evaluation Reports - <?php echo $_SESSION['department']; ?></h3>
-                <div class="no-print">
-                    <button class="btn btn-success me-2" onclick="exportToPDF()">
-                        <i class="fas fa-file-pdf me-2"></i>Export PDF
-                    </button>
+                <div class="no-print mt-3">
                     <button class="btn btn-primary me-2" onclick="window.print()">
                         <i class="fas fa-print me-2"></i>Print Report
-                    </button>
-                    <button class="btn btn-info" onclick="exportToExcel()">
-                        <i class="fas fa-file-excel me-2"></i>Export Excel
                     </button>
                 </div>
             </div>
 
             <!-- Filters -->
-            <div class="card mb-4 no-print">
-                <div class="card-header">
-                    <h5 class="mb-0">Report Filters</h5>
-                </div>
-                <div class="card-body">
-                    <form method="GET" class="row g-3">
-                        <div class="col-md-3">
-                            <label for="academic_year" class="form-label">Academic Year</label>
-                            <select class="form-select" id="academic_year" name="academic_year">
-                                <option value="2023-2024" <?php echo $academic_year == '2023-2024' ? 'selected' : ''; ?>>2023-2024</option>
-                                <option value="2022-2023" <?php echo $academic_year == '2022-2023' ? 'selected' : ''; ?>>2022-2023</option>
-                                <option value="2021-2022" <?php echo $academic_year == '2021-2022' ? 'selected' : ''; ?>>2021-2022</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label for="semester" class="form-label">Semester</label>
-                            <select class="form-select" id="semester" name="semester">
-                                <option value="">All Semesters</option>
-                                <option value="1st" <?php echo $semester == '1st' ? 'selected' : ''; ?>>1st Semester</option>
-                                <option value="2nd" <?php echo $semester == '2nd' ? 'selected' : ''; ?>>2nd Semester</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="teacher_id" class="form-label">Teacher</label>
-                            <select class="form-select" id="teacher_id" name="teacher_id">
-                                <option value="">All Teachers</option>
-                                <?php while($teacher_row = $teachers->fetch(PDO::FETCH_ASSOC)): ?>
-                                <option value="<?php echo $teacher_row['id']; ?>" 
-                                    <?php echo $teacher_id == $teacher_row['id'] ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($teacher_row['name']); ?>
-                                </option>
-                                <?php endwhile; ?>
-                            </select>
-                        </div>
-                        <div class="col-md-2 d-flex align-items-end">
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="fas fa-filter me-2"></i>Filter
-                            </button>
-                        </div>
-                    </form>
-                </div>
+            <div class="filters-card no-print">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="academic_year" class="form-label">Academic Year</label>
+                        <select class="form-select" id="academic_year" name="academic_year">
+                            <option value="2025-2026" <?php echo $academic_year == '2025-2026' ? 'selected' : ''; ?>>2025-2026</option>
+                            <option value="2024-2025" <?php echo $academic_year == '2024-2025' ? 'selected' : ''; ?>>2024-2025</option>
+                            <option value="2023-2024" <?php echo $academic_year == '2023-2024' ? 'selected' : ''; ?>>2023-2024</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="semester" class="form-label">Semester</label>
+                        <select class="form-select" id="semester" name="semester">
+                            <option value="">All Semesters</option>
+                            <option value="1st" <?php echo $semester == '1st' ? 'selected' : ''; ?>>1st Semester</option>
+                            <option value="2nd" <?php echo $semester == '2nd' ? 'selected' : ''; ?>>2nd Semester</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="teacher_id" class="form-label">Teacher</label>
+                        <select class="form-select" id="teacher_id" name="teacher_id">
+                            <option value="">All Teachers</option>
+                            <?php while($teacher_row = $teachers->fetch(PDO::FETCH_ASSOC)): ?>
+                            <option value="<?php echo $teacher_row['id']; ?>" 
+                                <?php echo $teacher_id == $teacher_row['id'] ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($teacher_row['name']); ?>
+                            </option>
+                            <?php endwhile; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search me-2"></i> Search
+                        </button>
+                    </div>
+                </form>
             </div>
 
             <!-- Classroom Observation Report -->
-            <div class="classroom-report">
-                <!-- Report Header -->
-                <div class="report-header">
-                    <div class="report-title">SAINT MICHAEL COLLEGE OF CARAGA</div>
-                    <div class="report-subtitle">Butuan City, Caraga Region</div>
-                    <div class="report-subtitle">Tel. Nos. (085) 343-2237 / (085) 285-3113</div>
-                    <div class="report-subtitle">www.smcccaraga.edu.ph</div>
-                </div>
-                
+            <div class="classroom-report">                
                 <!-- Report Info -->
                 <div class="report-info">
                     <div class="row">
@@ -223,10 +250,13 @@ $stats = $evaluation->getDepartmentStats($_SESSION['department'], $academic_year
                     <table class="report-table">
                         <thead>
                             <tr>
-                                <th width="12%">Date</th>
-                                <th width="20%">Name of Teacher Observed</th>
-                                <th width="18%">Subject/Class Schedule</th>
-                                <th width="40%">Remarks/Observations</th>
+                                <th width="10%">Date</th>
+                                <th width="10%">Name of Teacher Observed</th>
+                                <th width="10%">Subject/Class Schedule</th>
+                                <th width="20%">Strength</th>
+                                <th width="15%">Areas for Improvement</th>
+                                <th width="15%">Recommendation/s</th>
+                                <th width="10%">Agreement</th>
                                 <th width="10%">Ratings</th>
                             </tr>
                         </thead>
@@ -254,20 +284,36 @@ $stats = $evaluation->getDepartmentStats($_SESSION['department'], $academic_year
                                 
                                 // Get evaluation details for observations
                                 $evaluation_details = $evaluation->getEvaluationDetails($eval['id']);
-                                $observations = [];
+                                $strengths = [];
+                                $areas_for_improvement = [];
+                                $recommendations = [];
+                                $agreements = [];
                                 
                                 while($detail = $evaluation_details->fetch(PDO::FETCH_ASSOC)) {
                                     if (!empty($detail['comments'])) {
-                                        $observations[] = htmlspecialchars($detail['comments']);
+                                        // Categorize comments based on content or use default logic
+                                        $comment = htmlspecialchars($detail['comments']);
+                                        if (stripos($comment, 'strength') !== false || stripos($comment, 'good') !== false || stripos($comment, 'excellent') !== false) {
+                                            $strengths[] = $comment;
+                                        } elseif (stripos($comment, 'improve') !== false || stripos($comment, 'better') !== false || stripos($comment, 'suggestion') !== false) {
+                                            $areas_for_improvement[] = $comment;
+                                        } elseif (stripos($comment, 'recommend') !== false) {
+                                            $recommendations[] = $comment;
+                                        } elseif (stripos($comment, 'agree') !== false || stripos($comment, 'acknowledge') !== false) {
+                                            $agreements[] = $comment;
+                                        } else {
+                                            // Default to strengths for general positive comments
+                                            $strengths[] = $comment;
+                                        }
                                     }
                                 }
                                 
-                                // Get strengths and areas for improvement
+                                // Get predefined strengths and areas for improvement from evaluation
                                 if (!empty($eval['strengths'])) {
-                                    $observations[] = "<strong>Strengths:</strong> " . htmlspecialchars($eval['strengths']);
+                                    $strengths[] = htmlspecialchars($eval['strengths']);
                                 }
                                 if (!empty($eval['improvement_areas'])) {
-                                    $observations[] = "<strong>Areas for Improvement:</strong> " . htmlspecialchars($eval['improvement_areas']);
+                                    $areas_for_improvement[] = htmlspecialchars($eval['improvement_areas']);
                                 }
                                 ?>
                                 <tr>
@@ -279,21 +325,63 @@ $stats = $evaluation->getDepartmentStats($_SESSION['department'], $academic_year
                                     </td>
                                     <td>
                                         <div class="observation-notes">
-                                            <?php if(!empty($observations)): ?>
+                                            <!-- Strengths Section -->
+                                            <?php if(!empty($strengths)): ?>
                                                 <ul>
-                                                    <?php foreach($observations as $observation): ?>
-                                                        <li><?php echo $observation; ?></li>
+                                                    <?php foreach($strengths as $strength): ?>
+                                                        <li><?php echo $strength; ?></li>
                                                     <?php endforeach; ?>
                                                 </ul>
                                             <?php else: ?>
-                                                <em>No specific observations recorded.</em>
+                                                <em>No specific strengths identified.</em>
                                             <?php endif; ?>
-                                            
-                                            <?php if(!empty($eval['recommendations'])): ?>
-                                                <div class="mt-2">
-                                                    <strong>Recommendations:</strong><br>
-                                                    <?php echo nl2br(htmlspecialchars($eval['recommendations'])); ?>
-                                                </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="observation-notes">
+                                            <!-- Areas for Improvement Section -->
+                                            <?php if(!empty($areas_for_improvement)): ?>
+                                                <ul>
+                                                    <?php foreach($areas_for_improvement as $area): ?>
+                                                        <li><?php echo $area; ?></li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            <?php else: ?>
+                                                <em>No specific areas for improvement identified.</em>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="observation-notes">
+                                            <!-- Recommendations Section -->
+                                            <?php if(!empty($recommendations) || !empty($eval['recommendations'])): ?>
+                                                <?php 
+                                                $all_recommendations = $recommendations;
+                                                if (!empty($eval['recommendations'])) {
+                                                    $all_recommendations[] = htmlspecialchars($eval['recommendations']);
+                                                }
+                                                ?>
+                                                <ul>
+                                                    <?php foreach($all_recommendations as $recommendation): ?>
+                                                        <li><?php echo $recommendation; ?></li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            <?php else: ?>
+                                                <em>No specific recommendations provided.</em>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="observation-notes">
+                                            <!-- Agreement Section -->
+                                            <?php if(!empty($agreements)): ?>
+                                                <ul>
+                                                    <?php foreach($agreements as $agreement): ?>
+                                                        <li><?php echo $agreement; ?></li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            <?php else: ?>
+                                                <em>No specific agreements recorded.</em>
                                             <?php endif; ?>
                                         </div>
                                     </td>
@@ -309,7 +397,7 @@ $stats = $evaluation->getDepartmentStats($_SESSION['department'], $academic_year
                                 <?php endwhile; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="5" class="text-center py-4">
+                                    <td colspan="8" class="text-center py-4">
                                         <i class="fas fa-clipboard-list fa-2x text-muted mb-3"></i>
                                         <h5>No Evaluation Data</h5>
                                         <p class="text-muted">No classroom observations found for the selected filters.</p>
@@ -328,41 +416,6 @@ $stats = $evaluation->getDepartmentStats($_SESSION['department'], $academic_year
                         </div>
                         <div class="col-md-6 text-end">
                             <strong>Total Evaluations:</strong> <?php echo $stats['total_evaluations']; ?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Summary Statistics (Hidden in Print) -->
-            <div class="card mt-4 no-print">
-                <div class="card-header">
-                    <h5 class="mb-0">Summary Statistics</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-md-3">
-                            <div class="stat-card">
-                                <h3 class="text-primary"><?php echo $stats['total_evaluations']; ?></h3>
-                                <p class="text-muted">Total Evaluations</p>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="stat-card">
-                                <h3 class="text-info"><?php echo number_format($stats['avg_rating'], 1); ?></h3>
-                                <p class="text-muted">Average Rating</p>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="stat-card">
-                                <h3 class="text-success"><?php echo $stats['teachers_evaluated']; ?></h3>
-                                <p class="text-muted">Teachers Evaluated</p>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="stat-card">
-                                <h3 class="text-warning"><?php echo $stats['ai_recommendations']; ?></h3>
-                                <p class="text-muted">AI Recommendations</p>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -408,6 +461,7 @@ $stats = $evaluation->getDepartmentStats($_SESSION['department'], $academic_year
                         .rating-very-satisfactory { background: #17a2b8; color: white; }
                         .rating-satisfactory { background: #ffc107; color: black; }
                         .rating-below-satisfactory { background: #fd7e14; color: white; }
+                        .section-title { font-weight: bold; margin-top: 8px; margin-bottom: 3px; }
                         @media print { body { margin: 0; } }
                     </style>
                 </head>
@@ -422,12 +476,6 @@ $stats = $evaluation->getDepartmentStats($_SESSION['department'], $academic_year
             printWindow.onload = function() {
                 printWindow.print();
             };
-        }
-
-        function exportToExcel() {
-            alert('Excel export functionality would generate a spreadsheet version of this report.');
-            // In a real implementation, this would call a PHP script to generate Excel
-            // window.location.href = 'export_report.php?type=excel&academic_year=<?php echo $academic_year; ?>&semester=<?php echo $semester; ?>';
         }
 
         // Auto-print option for direct report generation

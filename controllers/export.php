@@ -1,6 +1,6 @@
 <?php
 require_once '../auth/session-check.php';
-if($_SESSION['role'] != 'admin') {
+if(!in_array($_SESSION['role'], ['dean', 'principal', 'chairperson', 'subject_coordinator', 'president', 'vice_president'])) {
     header("Location: ../login.php");
     exit();
 }
@@ -15,24 +15,28 @@ $db = $database->getConnection();
 $evaluation = new Evaluation($db);
 $teacher = new Teacher($db);
 
-// Get filter parameters
+// Get parameters
+$export_type = $_GET['type'] ?? 'pdf';
+$evaluation_id = $_GET['evaluation_id'] ?? 0;
+$report_type = $_GET['report_type'] ?? 'single';
 $academic_year = $_GET['academic_year'] ?? '2023-2024';
 $semester = $_GET['semester'] ?? '';
 $teacher_id = $_GET['teacher_id'] ?? '';
-$export_type = $_GET['type'] ?? 'pdf';
-$report_type = $_GET['report_type'] ?? 'summary';
-$evaluation_id = $_GET['evaluation_id'] ?? 0;
 
-// Get data for export
-$evaluations = $evaluation->getEvaluationsForReport($_SESSION['user_id'], $academic_year, $semester, $teacher_id);
-$stats = $evaluation->getDepartmentStats($_SESSION['department'], $academic_year, $semester);
-
-if($export_type == 'pdf') {
-    exportToPDF($evaluations, $stats, $academic_year, $semester, $report_type);
-} elseif($export_type == 'csv' || $export_type == 'excel') {
-    exportToExcel($evaluations, $stats, $academic_year, $semester, $report_type);
-} elseif($export_type == 'form') {
+if($export_type == 'form') {
     exportEvaluationForm($evaluation_id, $academic_year, $semester);
+} elseif($export_type == 'pdf') {
+    if($report_type == 'single') {
+        exportSingleEvaluationPDF($evaluation_id);
+    } else {
+        exportReportPDF($academic_year, $semester, $teacher_id);
+    }
+} elseif($export_type == 'csv') {
+    if($report_type == 'single') {
+        exportSingleEvaluationCSV($evaluation_id);
+    } else {
+        exportReportCSV($academic_year, $semester, $teacher_id);
+    }
 }
 
 function exportEvaluationForm($evaluation_id, $academic_year, $semester) {
@@ -548,14 +552,49 @@ function exportEvaluationForm($evaluation_id, $academic_year, $semester) {
     <?php
 }
 
-function exportToPDF($evaluations, $stats, $academic_year, $semester, $report_type) {
+function exportSingleEvaluationPDF($evaluation_id) {
+    global $evaluation;
+    
+    // Get evaluation data
+    $eval_data = $evaluation->getEvaluationById($evaluation_id);
+    
+    if(!$eval_data) {
+        die("Evaluation not found");
+    }
+    
     // Set headers for PDF download
     header('Content-Type: application/pdf');
-    header('Content-Disposition: attachment; filename="evaluation_report_' . date('Y-m-d') . '.pdf"');
+    header('Content-Disposition: attachment; filename="evaluation_' . $evaluation_id . '_' . date('Y-m-d') . '.pdf"');
     
-    // In a real implementation, you would use FPDF or TCPDF
-    // This is a simplified version
+    // Simple PDF content - in a real implementation, use FPDF or TCPDF
+    $pdf_content = "
+        Classroom Evaluation Report
+        ===========================
+        
+        Teacher: {$eval_data['teacher_name']}
+        Department: {$eval_data['department']}
+        Academic Year: {$eval_data['academic_year']}
+        Semester: {$eval_data['semester']}
+        Subject: {$eval_data['subject_observed']}
+        Observation Date: " . date('F j, Y', strtotime($eval_data['observation_date'])) . "
+        
+        Ratings:
+        - Communications: {$eval_data['communications_avg']}
+        - Management: {$eval_data['management_avg']}
+        - Assessment: {$eval_data['assessment_avg']}
+        - Overall: {$eval_data['overall_avg']}
+        
+        Strengths:
+        {$eval_data['strengths']}
+        
+        Areas for Improvement:
+        {$eval_data['improvement_areas']}
+        
+        Recommendations:
+        {$eval_data['recommendations']}
+    ";
     
+    // This is a very basic PDF - in production, use a proper PDF library
     echo "%PDF-1.4\n";
     echo "1 0 obj\n";
     echo "<< /Type /Catalog /Pages 2 0 R >>\n";
@@ -567,21 +606,9 @@ function exportToPDF($evaluations, $stats, $academic_year, $semester, $report_ty
     echo "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\n";
     echo "endobj\n";
     echo "4 0 obj\n";
-    echo "<< /Length 100 >>\n";
+    echo "<< /Length " . strlen($pdf_content) . " >>\n";
     echo "stream\n";
-    echo "BT\n";
-    echo "/F1 12 Tf\n";
-    echo "50 750 Td\n";
-    echo "(Classroom Evaluation Report) Tj\n";
-    echo "0 -20 Td\n";
-    echo "(Academic Year: $academic_year) Tj\n";
-    echo "0 -20 Td\n";
-    echo "(Semester: " . ($semester ?: 'All') . ") Tj\n";
-    echo "0 -20 Td\n";
-    echo "(Total Evaluations: " . $stats['total_evaluations'] . ") Tj\n";
-    echo "0 -20 Td\n";
-    echo "(Average Rating: " . number_format($stats['avg_rating'], 1) . ") Tj\n";
-    echo "ET\n";
+    echo $pdf_content . "\n";
     echo "endstream\n";
     echo "endobj\n";
     echo "xref\n";
@@ -598,51 +625,116 @@ function exportToPDF($evaluations, $stats, $academic_year, $semester, $report_ty
     echo "%%EOF";
 }
 
-function exportToExcel($evaluations, $stats, $academic_year, $semester, $report_type) {
-    // Set headers for Excel download
-    header('Content-Type: application/vnd.ms-excel');
-    header('Content-Disposition: attachment; filename="evaluation_report_' . date('Y-m-d') . '.xls"');
+function exportSingleEvaluationCSV($evaluation_id) {
+    global $evaluation;
     
-    echo "<table border='1'>";
-    echo "<tr><th colspan='6'>Classroom Evaluation Report - " . $_SESSION['department'] . "</th></tr>";
-    echo "<tr><th colspan='6'>Academic Year: $academic_year | Semester: " . ($semester ?: 'All') . "</th></tr>";
-    echo "<tr><th colspan='6'>Generated on: " . date('Y-m-d H:i:s') . "</th></tr>";
-    echo "<tr><td colspan='6'>&nbsp;</td></tr>";
+    // Get evaluation data
+    $eval_data = $evaluation->getEvaluationById($evaluation_id);
     
-    // Summary Statistics
-    echo "<tr><th colspan='6'>Summary Statistics</th></tr>";
-    echo "<tr>
-            <th>Total Evaluations</th>
-            <th>Average Rating</th>
-            <th>Teachers Evaluated</th>
-            <th>AI Recommendations</th>
-            <th>Excellent Ratings</th>
-            <th>Needs Improvement</th>
-          </tr>";
-    echo "<tr>
-            <td>" . $stats['total_evaluations'] . "</td>
-            <td>" . number_format($stats['avg_rating'], 1) . "</td>
-            <td>" . $stats['teachers_evaluated'] . "</td>
-            <td>" . $stats['ai_recommendations'] . "</td>
-            <td>" . ($stats['excellent_ratings'] ?? 0) . "</td>
-            <td>" . ($stats['needs_improvement'] ?? 0) . "</td>
-          </tr>";
-    echo "<tr><td colspan='6'>&nbsp;</td></tr>";
+    if(!$eval_data) {
+        die("Evaluation not found");
+    }
     
-    // Detailed Evaluation Data
-    echo "<tr><th colspan='10'>Evaluation Details</th></tr>";
-    echo "<tr>
-            <th>Teacher</th>
-            <th>Date</th>
-            <th>Subject</th>
-            <th>Comm Avg</th>
-            <th>Mgmt Avg</th>
-            <th>Assess Avg</th>
-            <th>Overall Avg</th>
-            <th>Rating</th>
-            <th>AI Recs</th>
-            <th>Evaluator</th>
-          </tr>";
+    // Set headers for CSV download
+    header('Content-Type: text/csv');
+    header('Content-Disposition: attachment; filename="evaluation_' . $evaluation_id . '_' . date('Y-m-d') . '.csv"');
+    
+    $output = fopen('php://output', 'w');
+    
+    // Add headers
+    fputcsv($output, ['Field', 'Value']);
+    
+    // Add data
+    fputcsv($output, ['Teacher Name', $eval_data['teacher_name']]);
+    fputcsv($output, ['Department', $eval_data['department']]);
+    fputcsv($output, ['Academic Year', $eval_data['academic_year']]);
+    fputcsv($output, ['Semester', $eval_data['semester']]);
+    fputcsv($output, ['Subject Observed', $eval_data['subject_observed']]);
+    fputcsv($output, ['Observation Date', $eval_data['observation_date']]);
+    fputcsv($output, ['Communications Average', $eval_data['communications_avg']]);
+    fputcsv($output, ['Management Average', $eval_data['management_avg']]);
+    fputcsv($output, ['Assessment Average', $eval_data['assessment_avg']]);
+    fputcsv($output, ['Overall Average', $eval_data['overall_avg']]);
+    fputcsv($output, ['Strengths', $eval_data['strengths']]);
+    fputcsv($output, ['Improvement Areas', $eval_data['improvement_areas']]);
+    fputcsv($output, ['Recommendations', $eval_data['recommendations']]);
+    
+    fclose($output);
+}
+
+function exportReportPDF($academic_year, $semester, $teacher_id) {
+    global $evaluation;
+    
+    // Get evaluations for report
+    $evaluations = $evaluation->getEvaluationsForReport($_SESSION['user_id'], $academic_year, $semester, $teacher_id);
+    $stats = $evaluation->getDepartmentStats($_SESSION['department'], $academic_year, $semester);
+    
+    // Set headers for PDF download
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="evaluation_report_' . date('Y-m-d') . '.pdf"');
+    
+    // Simple PDF content
+    $pdf_content = "Evaluation Report\n";
+    $pdf_content .= "Academic Year: $academic_year\n";
+    $pdf_content .= "Semester: " . ($semester ?: 'All') . "\n";
+    $pdf_content .= "Total Evaluations: {$stats['total_evaluations']}\n";
+    $pdf_content .= "Average Rating: " . number_format($stats['avg_rating'], 1) . "\n\n";
+    
+    if($evaluations->rowCount() > 0) {
+        $pdf_content .= "Evaluation Details:\n";
+        while($eval = $evaluations->fetch(PDO::FETCH_ASSOC)) {
+            $pdf_content .= "Teacher: {$eval['teacher_name']} | ";
+            $pdf_content .= "Date: " . date('M j, Y', strtotime($eval['observation_date'])) . " | ";
+            $pdf_content .= "Subject: {$eval['subject_observed']} | ";
+            $pdf_content .= "Overall: " . number_format($eval['overall_avg'], 1) . "\n";
+        }
+    }
+    
+    // Basic PDF structure
+    echo "%PDF-1.4\n";
+    echo "1 0 obj\n";
+    echo "<< /Type /Catalog /Pages 2 0 R >>\n";
+    echo "endobj\n";
+    echo "2 0 obj\n";
+    echo "<< /Type /Pages /Kids [3 0 R] /Count 1 >>\n";
+    echo "endobj\n";
+    echo "3 0 obj\n";
+    echo "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\n";
+    echo "endobj\n";
+    echo "4 0 obj\n";
+    echo "<< /Length " . strlen($pdf_content) . " >>\n";
+    echo "stream\n";
+    echo $pdf_content . "\n";
+    echo "endstream\n";
+    echo "endobj\n";
+    echo "xref\n";
+    echo "0 5\n";
+    echo "0000000000 65535 f \n";
+    echo "0000000009 00000 n \n";
+    echo "0000000058 00000 n \n";
+    echo "0000000115 00000 n \n";
+    echo "0000000224 00000 n \n";
+    echo "trailer\n";
+    echo "<< /Size 5 /Root 1 0 R >>\n";
+    echo "startxref\n";
+    echo "380\n";
+    echo "%%EOF";
+}
+
+function exportReportCSV($academic_year, $semester, $teacher_id) {
+    global $evaluation;
+    
+    // Get evaluations for report
+    $evaluations = $evaluation->getEvaluationsForReport($_SESSION['user_id'], $academic_year, $semester, $teacher_id);
+    
+    // Set headers for CSV download
+    header('Content-Type: text/csv');
+    header('Content-Disposition: attachment; filename="evaluation_report_' . date('Y-m-d') . '.csv"');
+    
+    $output = fopen('php://output', 'w');
+    
+    // Add headers
+    fputcsv($output, ['Teacher', 'Date', 'Subject', 'Comm Avg', 'Mgmt Avg', 'Assess Avg', 'Overall Avg', 'Rating', 'AI Recs', 'Evaluator']);
     
     if($evaluations->rowCount() > 0) {
         while($eval = $evaluations->fetch(PDO::FETCH_ASSOC)) {
@@ -652,23 +744,21 @@ function exportToExcel($evaluations, $stats, $academic_year, $semester, $report_
             elseif($eval['overall_avg'] >= 2.9) $rating = 'Satisfactory';
             elseif($eval['overall_avg'] >= 1.8) $rating = 'Below Satisfactory';
             
-            echo "<tr>
-                    <td>" . htmlspecialchars($eval['teacher_name']) . "</td>
-                    <td>" . date('Y-m-d', strtotime($eval['observation_date'])) . "</td>
-                    <td>" . htmlspecialchars($eval['subject_observed']) . "</td>
-                    <td>" . number_format($eval['communications_avg'], 1) . "</td>
-                    <td>" . number_format($eval['management_avg'], 1) . "</td>
-                    <td>" . number_format($eval['assessment_avg'], 1) . "</td>
-                    <td>" . number_format($eval['overall_avg'], 1) . "</td>
-                    <td>$rating</td>
-                    <td>" . $eval['ai_count'] . "</td>
-                    <td>" . htmlspecialchars($eval['evaluator_name']) . "</td>
-                  </tr>";
+            fputcsv($output, [
+                $eval['teacher_name'],
+                date('Y-m-d', strtotime($eval['observation_date'])),
+                $eval['subject_observed'],
+                number_format($eval['communications_avg'], 1),
+                number_format($eval['management_avg'], 1),
+                number_format($eval['assessment_avg'], 1),
+                number_format($eval['overall_avg'], 1),
+                $rating,
+                $eval['ai_count'],
+                $eval['evaluator_name']
+            ]);
         }
-    } else {
-        echo "<tr><td colspan='10' style='text-align: center;'>No evaluation data found</td></tr>";
     }
     
-    echo "</table>";
+    fclose($output);
 }
 ?>
