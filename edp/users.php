@@ -265,6 +265,104 @@ function getAssignedCoordinators($db, $supervisor_id) {
             font-size: 0.85em;
             margin-left: 5px;
         }
+        /* Responsive table enhancements */
+        .table-responsive {
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .table th {
+            border-top: none;
+            font-weight: 600;
+            font-size: 0.875rem;
+            white-space: nowrap;
+        }
+
+        .table td {
+            vertical-align: middle;
+            font-size: 0.875rem;
+        }
+
+        /* Badge improvements */
+        .badge {
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        /* Button group improvements */
+        .btn-group-sm > .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        /* Chip-style badges for coordinators and specializations */
+        .coordinator-chips .badge,
+        .specialization-chips .badge {
+            font-size: 0.7rem;
+            padding: 0.25rem 0.5rem;
+            display: inline-block;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Mobile-specific styles */
+        @media (max-width: 768px) {
+            .table-responsive {
+                font-size: 0.8rem;
+            }
+            
+            .btn-group-vertical .btn {
+                font-size: 0.7rem;
+                padding: 0.2rem 0.4rem;
+            }
+            
+            .badge {
+                font-size: 0.7rem;
+            }
+            
+            .coordinator-chips .badge,
+            .specialization-chips .badge {
+                font-size: 0.65rem;
+                padding: 0.2rem 0.4rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .card-body {
+                padding: 1rem;
+            }
+            
+            .table-responsive {
+                margin: 0 -1rem;
+                width: calc(100% + 2rem);
+            }
+            
+            .btn-group-sm > .btn {
+                padding: 0.2rem 0.3rem;
+                font-size: 0.7rem;
+            }
+            
+            /* Hide text in buttons on extra small screens */
+            .btn span.d-none {
+                display: none !important;
+            }
+        }
+
+        /* Hover effects */
+        .table-hover tbody tr:hover {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+
+        /* Ensure code elements are readable */
+        code {
+            font-size: 0.8rem;
+            background: #f8f9fa;
+            padding: 0.1rem 0.3rem;
+            border-radius: 3px;
+            color: #e83e8c;
+        }
     </style>
 </head>
 <body>
@@ -313,283 +411,399 @@ function getAssignedCoordinators($db, $supervisor_id) {
                 </select>
             </form>
 
-            <!-- Leadership Section (President & Vice President) -->
-            <div class="card mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fas fa-crown me-2"></i>President & Vice President</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Name</th>
-                                    <th>Username</th>
-                                    <th>Role</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php 
-                                $counter = 1;
-                                $leadership_roles = ['president', 'vice_president'];
-                                foreach ($leadership_roles as $role) {
-                                    while($row = $evaluators[$role]->fetch(PDO::FETCH_ASSOC)):
-                                ?>
-                                <tr>
-                                    <td><?php echo $counter++; ?></td>
-                                    <td><?php echo htmlspecialchars($row['name']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['username']); ?></td>
-                                    <td><?php echo ucfirst(str_replace('_', ' ', $row['role'])); ?></td>
-                                    <td>
-                                        <span class="badge bg-<?php echo $row['status'] == 'active' ? 'success' : 'secondary'; ?>">
-                                            <?php echo ucfirst($row['status']); ?>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <a href="edit_evaluator.php?id=<?php echo $row['id']; ?>" class="btn btn-sm btn-info">Edit</a>
-                                        <form method="POST" style="display: inline;">
-                                            <input type="hidden" name="user_id" value="<?php echo $row['id']; ?>">
-                                            <input type="hidden" name="action" value="<?php echo $row['status'] == 'active' ? 'deactivate' : 'activate'; ?>">
-                                            <button type="submit" class="btn btn-sm btn-<?php echo $row['status'] == 'active' ? 'warning' : 'success'; ?>">
-                                                <i class="fas fa-<?php echo $row['status'] == 'active' ? 'user-slash' : 'user-check'; ?>"></i>
-                                                <?php echo $row['status'] == 'active' ? 'Deactivate' : 'Activate'; ?>
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                <?php endwhile; } ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Supervisors Section (Deans & Principals) -->
-            <div class="card mb-4">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0"><i class="fas fa-user-tie me-2"></i>Supervisors (Deans & Principals)</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Name</th>
-                                    <th>Username</th>
-                                    <th>Role</th>
-                                    <th>Department</th>
-                                    <th>Assigned Coordinators</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php 
-                                $counter = 1;
-                                $supervisor_roles = ['dean', 'principal'];
-                                foreach ($supervisor_roles as $role) {
-                                    while($row = $evaluators[$role]->fetch(PDO::FETCH_ASSOC)):
-                                        $assigned_coordinators = getAssignedCoordinators($db, $row['id']);
-                                ?>
-                                <tr>
-                                    <td><?php echo $counter++; ?></td>
-                                    <td><?php echo htmlspecialchars($row['name']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['username']); ?></td>
-                                    <td><?php echo ucfirst(str_replace('_', ' ', $row['role'])); ?></td>
-                                    <td><?php echo htmlspecialchars($row['department']); ?></td>
-                                    <td>
-                                        <?php if (!empty($assigned_coordinators)): ?>
-                                            <?php foreach($assigned_coordinators as $coordinator): ?>
-                                                <span class="supervisor-badge"><?php echo htmlspecialchars($coordinator['name']); ?> (<?php echo ucfirst(str_replace('_', ' ', $coordinator['role'])); ?>)</span>
-                                            <?php endforeach; ?>
-                                        <?php else: ?>
-                                            <span class="text-muted">No coordinators assigned</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-<?php echo $row['status'] == 'active' ? 'success' : 'secondary'; ?>">
-                                            <?php echo ucfirst($row['status']); ?>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <a href="edit_evaluator.php?id=<?php echo $row['id']; ?>" class="btn btn-sm btn-info">Edit</a>
-                                        <a href="assign_coordinators.php?supervisor_id=<?php echo $row['id']; ?>" class="btn btn-sm btn-primary assign-btn">Assign Coordinators</a>
-                                        <a href="assign_teachers.php?evaluator_id=<?php echo $row['id']; ?>" class="btn btn-sm btn-success assign-btn">Assign Teachers</a>
-                                        <form method="POST" style="display: inline;">
-                                            <input type="hidden" name="user_id" value="<?php echo $row['id']; ?>">
-                                            <input type="hidden" name="action" value="<?php echo $row['status'] == 'active' ? 'deactivate' : 'activate'; ?>">
-                                            <button type="submit" class="btn btn-sm btn-<?php echo $row['status'] == 'active' ? 'warning' : 'success'; ?>">
-                                                <i class="fas fa-<?php echo $row['status'] == 'active' ? 'user-slash' : 'user-check'; ?>"></i>
-                                                <?php echo $row['status'] == 'active' ? 'Deactivate' : 'Activate'; ?>
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                <?php endwhile; } ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Coordinators Section -->
-            <div class="card mb-4">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>Coordinators</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Name</th>
-                                    <th>Username</th>
-                                    <th>Role</th>
-                                    <th>Department</th>
-                                    <th>Subjects/Grade Levels</th>
-                                    <th>Supervisor</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php 
-                                $counter = 1;
-                                $coordinator_roles = ['subject_coordinator', 'chairperson', 'grade_level_coordinator'];
-                                foreach ($coordinator_roles as $role) {
-                                    while($row = $evaluators[$role]->fetch(PDO::FETCH_ASSOC)):
-                                        if (in_array($row['role'], ['subject_coordinator', 'chairperson'])) {
-                                            $items = getEvaluatorSubjects($db, $row['id']);
-                                            $items_type = 'subjects';
-                                        } elseif ($row['role'] === 'grade_level_coordinator') {
-                                            $items = getEvaluatorGradeLevels($db, $row['id']);
-                                            $items_type = 'grade_levels';
-                                        } else {
-                                            $items = [];
-                                            $items_type = '';
-                                        }
-                                        $supervisor = getEvaluatorSupervisor($db, $row['id']);
-                                ?>
-                                <tr>
-                                    <td><?php echo $counter++; ?></td>
-                                    <td><?php echo htmlspecialchars($row['name']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['username']); ?></td>
-                                    <td><?php echo ucfirst(str_replace('_', ' ', $row['role'])); ?></td>
-                                    <td><?php echo htmlspecialchars($row['department']); ?></td>
-                                    <td>
-                                        <?php if (!empty($items)): ?>
-                                            <?php if ($items_type === 'subjects'): ?>
-                                                <?php echo implode(', ', $items); ?>
-                                            <?php elseif ($items_type === 'grade_levels'): ?>
-                                                <?php foreach($items as $grade): ?>
-                                                    <span class="grade-badge">Grade <?php echo $grade; ?></span>
-                                                <?php endforeach; ?>
-                                            <?php endif; ?>
-                                        <?php else: ?>
-                                            <span class="text-muted">No <?php echo $items_type ?: 'items'; ?> assigned</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?php if ($supervisor): ?>
-                                            <span class="supervisor-badge"><?php echo htmlspecialchars($supervisor['name']); ?> (<?php echo ucfirst(str_replace('_', ' ', $supervisor['role'])); ?>)</span>
-                                        <?php else: ?>
-                                            <span class="text-muted">Not assigned</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-<?php echo $row['status'] == 'active' ? 'success' : 'secondary'; ?>">
-                                            <?php echo ucfirst($row['status']); ?>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <a href="edit_evaluator.php?id=<?php echo $row['id']; ?>" class="btn btn-sm btn-info">Edit</a>
-                                        <a href="assign_teachers.php?evaluator_id=<?php echo $row['id']; ?>" class="btn btn-sm btn-primary assign-btn">Assign Teachers</a>
-                                        <form method="POST" style="display: inline;">
-                                            <input type="hidden" name="user_id" value="<?php echo $row['id']; ?>">
-                                            <input type="hidden" name="action" value="<?php echo $row['status'] == 'active' ? 'deactivate' : 'activate'; ?>">
-                                            <button type="submit" class="btn btn-sm btn-<?php echo $row['status'] == 'active' ? 'warning' : 'success'; ?>">
-                                                <i class="fas fa-<?php echo $row['status'] == 'active' ? 'user-slash' : 'user-check'; ?>"></i>
-                                                <?php echo $row['status'] == 'active' ? 'Deactivate' : 'Activate'; ?>
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                <?php endwhile; } ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Teachers Section -->
-            <div class="card mb-4">
-                <div class="card-header bg-warning text-white">
-                    <h5 class="mb-0"><i class="fas fa-chalkboard-teacher me-2"></i>Teacher Accounts</h5>
-                </div>
-                <div class="card-body">
-                    <?php
-                    // Get teachers with user accounts
-                    $teacher_query = "SELECT t.*, u.username, u.status FROM teachers t 
-                                    LEFT JOIN users u ON t.user_id = u.id 
-                                    WHERE u.role = 'teacher' OR (u.role = 'teacher' AND u.id IS NOT NULL)
-                                    ORDER BY t.name ASC";
-                    $teacher_result = $db->query($teacher_query);
+<!-- Leadership Section (President & Vice President) -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-crown me-2"></i>President & Vice President</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th width="5%">#</th>
+                        <th>Name</th>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th width="10%">Status</th>
+                        <th width="20%">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    $counter = 1;
+                    $leadership_roles = ['president', 'vice_president'];
+                    foreach ($leadership_roles as $role) {
+                        while($row = $evaluators[$role]->fetch(PDO::FETCH_ASSOC)):
                     ?>
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Name</th>
-                                    <th>Username</th>
-                                    <th>Department</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php 
-                                $counter = 1;
-                                while($row = $teacher_result->fetch(PDO::FETCH_ASSOC)):
-                                    if(!empty($row['username'])):
-                                ?>
-                                <tr>
-                                    <td><?php echo $counter++; ?></td>
-                                    <td><?php echo htmlspecialchars($row['name']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['username']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['department']); ?></td>
-                                    <td>
-                                        <span class="badge bg-<?php echo $row['status'] == 'active' ? 'success' : 'secondary'; ?>">
-                                            <?php echo ucfirst($row['status']); ?>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <form method="POST" style="display: inline;">
-                                            <input type="hidden" name="user_id" value="<?php echo $row['user_id']; ?>">
-                                            <input type="hidden" name="action" value="<?php echo $row['status'] == 'active' ? 'deactivate' : 'activate'; ?>">
-                                            <button type="submit" class="btn btn-sm btn-<?php echo $row['status'] == 'active' ? 'warning' : 'success'; ?>">
-                                                <i class="fas fa-<?php echo $row['status'] == 'active' ? 'user-slash' : 'user-check'; ?>"></i>
-                                                <?php echo $row['status'] == 'active' ? 'Deactivate' : 'Activate'; ?>
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                <?php 
-                                    endif;
-                                endwhile; 
-                                ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+                    <tr>
+                        <td><?php echo $counter++; ?></td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-user-circle me-2 text-muted"></i>
+                                <?php echo htmlspecialchars($row['name']); ?>
+                            </div>
+                        </td>
+                        <td>
+                            <code><?php echo htmlspecialchars($row['username']); ?></code>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">
+                                <?php echo ucfirst(str_replace('_', ' ', $row['role'])); ?>
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-<?php echo $row['status'] == 'active' ? 'success' : 'secondary'; ?>">
+                                <i class="fas fa-circle me-1" style="font-size: 0.6em;"></i>
+                                <?php echo ucfirst($row['status']); ?>
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="edit_evaluator.php?id=<?php echo $row['id']; ?>" class="btn btn-outline-primary">
+                                    <i class="fas fa-edit"></i>
+                                    <span class="d-none d-md-inline">Edit</span>
+                                </a>
+                                <form method="POST" style="display: inline;">
+                                    <input type="hidden" name="user_id" value="<?php echo $row['id']; ?>">
+                                    <input type="hidden" name="action" value="<?php echo $row['status'] == 'active' ? 'deactivate' : 'activate'; ?>">
+                                    <button type="submit" class="btn btn-<?php echo $row['status'] == 'active' ? 'outline-warning' : 'outline-success'; ?>">
+                                        <i class="fas fa-<?php echo $row['status'] == 'active' ? 'user-slash' : 'user-check'; ?>"></i>
+                                        <span class="d-none d-md-inline"><?php echo $row['status'] == 'active' ? 'Deactivate' : 'Activate'; ?></span>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endwhile; } ?>
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
+
+<!-- Supervisors Section (Deans & Principals) -->
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="fas fa-user-tie me-2"></i>Deans & Principals</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th width="5%">#</th>
+                        <th>Name</th>
+                        <th class="d-none d-lg-table-cell">Username</th>
+                        <th>Role</th>
+                        <th class="d-none d-md-table-cell">Department</th>
+                        <th>Coordinators</th>
+                        <th width="10%">Status</th>
+                        <th width="25%">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    $counter = 1;
+                    $supervisor_roles = ['dean', 'principal'];
+                    foreach ($supervisor_roles as $role) {
+                        while($row = $evaluators[$role]->fetch(PDO::FETCH_ASSOC)):
+                            $assigned_coordinators = getAssignedCoordinators($db, $row['id']);
+                    ?>
+                    <tr>
+                        <td><?php echo $counter++; ?></td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-user-tie me-2 text-info"></i>
+                                <div>
+                                    <div class="fw-bold"><?php echo htmlspecialchars($row['name']); ?></div>
+                                    <small class="text-muted d-lg-none"><?php echo htmlspecialchars($row['username']); ?></small>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="d-none d-lg-table-cell">
+                            <code><?php echo htmlspecialchars($row['username']); ?></code>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">
+                                <?php echo ucfirst(str_replace('_', ' ', $row['role'])); ?>
+                            </span>
+                        </td>
+                        <td class="d-none d-md-table-cell">
+                            <?php echo htmlspecialchars($row['department']); ?>
+                        </td>
+                        <td>
+                            <?php if (!empty($assigned_coordinators)): ?>
+                                <div class="coordinator-chips">
+                                    <?php foreach(array_slice($assigned_coordinators, 0, 2) as $coordinator): ?>
+                                        <span class="badge bg-light text-dark border me-1 mb-1" title="<?php echo htmlspecialchars($coordinator['name']); ?>">
+                                            <?php echo htmlspecialchars($coordinator['name']); ?>
+                                            <small>(<?php echo ucfirst(str_replace('_', ' ', $coordinator['role'])); ?>)</small>
+                                        </span>
+                                    <?php endforeach; ?>
+                                    <?php if(count($assigned_coordinators) > 2): ?>
+                                        <span class="badge bg-secondary" title="+<?php echo count($assigned_coordinators) - 2; ?> more">
+                                            +<?php echo count($assigned_coordinators) - 2; ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                            <?php else: ?>
+                                <span class="text-muted small">None assigned</span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <span class="badge bg-<?php echo $row['status'] == 'active' ? 'success' : 'secondary'; ?>">
+                                <i class="fas fa-circle me-1" style="font-size: 0.6em;"></i>
+                                <?php echo ucfirst($row['status']); ?>
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group-vertical btn-group-sm" role="group">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="edit_evaluator.php?id=<?php echo $row['id']; ?>" class="btn btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                        <span class="d-none d-sm-inline">Edit</span>
+                                    </a>
+                                    <a href="assign_coordinators.php?supervisor_id=<?php echo $row['id']; ?>" class="btn btn-outline-info">
+                                        <i class="fas fa-users"></i>
+                                        <span class="d-none d-sm-inline">Coordinators</span>
+                                    </a>
+                                </div>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <form method="POST" class="d-inline">
+                                        <input type="hidden" name="user_id" value="<?php echo $row['id']; ?>">
+                                        <input type="hidden" name="action" value="<?php echo $row['status'] == 'active' ? 'deactivate' : 'activate'; ?>">
+                                        <button type="submit" class="btn btn-<?php echo $row['status'] == 'active' ? 'outline-warning' : 'outline-success'; ?>">
+                                            <i class="fas fa-<?php echo $row['status'] == 'active' ? 'user-slash' : 'user-check'; ?>"></i>
+                                            <span class="d-none d-sm-inline"><?php echo $row['status'] == 'active' ? 'Deactivate' : 'Activate'; ?></span>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endwhile; } ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Coordinators Section -->
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="fas fa-users me-2"></i>Coordinators</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th width="5%">#</th>
+                        <th>Name</th>
+                        <th class="d-none d-lg-table-cell">Username</th>
+                        <th>Role</th>
+                        <th class="d-none d-md-table-cell">Department</th>
+                        <th>Specializations</th>
+                        <th class="d-none d-xl-table-cell">Supervisor</th>
+                        <th width="10%">Status</th>
+                        <th width="25%">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    $counter = 1;
+                    $coordinator_roles = ['subject_coordinator', 'chairperson', 'grade_level_coordinator'];
+                    foreach ($coordinator_roles as $role) {
+                        while($row = $evaluators[$role]->fetch(PDO::FETCH_ASSOC)):
+                            if (in_array($row['role'], ['subject_coordinator', 'chairperson'])) {
+                                $items = getEvaluatorSubjects($db, $row['id']);
+                                $items_type = 'subjects';
+                            } elseif ($row['role'] === 'grade_level_coordinator') {
+                                $items = getEvaluatorGradeLevels($db, $row['id']);
+                                $items_type = 'grade_levels';
+                            } else {
+                                $items = [];
+                                $items_type = '';
+                            }
+                            $supervisor = getEvaluatorSupervisor($db, $row['id']);
+                    ?>
+                    <tr>
+                        <td><?php echo $counter++; ?></td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-user me-2 text-success"></i>
+                                <div>
+                                    <div class="fw-bold"><?php echo htmlspecialchars($row['name']); ?></div>
+                                    <small class="text-muted d-lg-none"><?php echo htmlspecialchars($row['username']); ?></small>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="d-none d-lg-table-cell">
+                            <code><?php echo htmlspecialchars($row['username']); ?></code>
+                        </td>
+                        <td>
+                            <span class="badge bg-success">
+                                <?php echo ucfirst(str_replace('_', ' ', $row['role'])); ?>
+                            </span>
+                        </td>
+                        <td class="d-none d-md-table-cell">
+                            <?php echo htmlspecialchars($row['department']); ?>
+                        </td>
+                        <td>
+                            <?php if (!empty($items)): ?>
+                                <div class="specialization-chips">
+                                    <?php if ($items_type === 'subjects'): ?>
+                                        <?php foreach(array_slice($items, 0, 2) as $item): ?>
+                                            <span class="badge bg-light text-dark border me-1 mb-1"><?php echo htmlspecialchars($item); ?></span>
+                                        <?php endforeach; ?>
+                                        <?php if(count($items) > 2): ?>
+                                            <span class="badge bg-secondary">+<?php echo count($items) - 2; ?></span>
+                                        <?php endif; ?>
+                                    <?php elseif ($items_type === 'grade_levels'): ?>
+                                        <?php foreach(array_slice($items, 0, 3) as $grade): ?>
+                                            <span class="badge bg-primary me-1 mb-1">G<?php echo $grade; ?></span>
+                                        <?php endforeach; ?>
+                                        <?php if(count($items) > 3): ?>
+                                            <span class="badge bg-secondary">+<?php echo count($items) - 3; ?></span>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                </div>
+                            <?php else: ?>
+                                <span class="text-muted small">None assigned</span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="d-none d-xl-table-cell">
+                            <?php if ($supervisor): ?>
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-user-tie me-2 text-muted"></i>
+                                    <div>
+                                        <div class="small fw-bold"><?php echo htmlspecialchars($supervisor['name']); ?></div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">
+                                            <?php echo ucfirst(str_replace('_', ' ', $supervisor['role'])); ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php else: ?>
+                                <span class="text-muted small">Not assigned</span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <span class="badge bg-<?php echo $row['status'] == 'active' ? 'success' : 'secondary'; ?>">
+                                <i class="fas fa-circle me-1" style="font-size: 0.6em;"></i>
+                                <?php echo ucfirst($row['status']); ?>
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group-vertical btn-group-sm" role="group">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="edit_evaluator.php?id=<?php echo $row['id']; ?>" class="btn btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                        <span class="d-none d-sm-inline">Edit</span>
+                                    </a>
+                                    <a href="assign_teachers.php?evaluator_id=<?php echo $row['id']; ?>" class="btn btn-outline-success">
+                                        <i class="fas fa-chalkboard-teacher"></i>
+                                        <span class="d-none d-sm-inline">Teachers</span>
+                                    </a>
+                                </div>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <form method="POST" class="d-inline">
+                                        <input type="hidden" name="user_id" value="<?php echo $row['id']; ?>">
+                                        <input type="hidden" name="action" value="<?php echo $row['status'] == 'active' ? 'deactivate' : 'activate'; ?>">
+                                        <button type="submit" class="btn btn-<?php echo $row['status'] == 'active' ? 'outline-warning' : 'outline-success'; ?>">
+                                            <i class="fas fa-<?php echo $row['status'] == 'active' ? 'user-slash' : 'user-check'; ?>"></i>
+                                            <span class="d-none d-sm-inline"><?php echo $row['status'] == 'active' ? 'Deactivate' : 'Activate'; ?></span>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endwhile; } ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Teachers Section -->
+<div class="card mb-4">
+    <div class="card-header bg-warning text-white">
+        <h5 class="mb-0"><i class="fas fa-chalkboard-teacher me-2"></i>Teachers</h5>
+    </div>
+    <div class="card-body">
+        <?php
+        // Get teachers with user accounts
+        $teacher_query = "SELECT t.*, u.username, u.status, u.id as user_id FROM teachers t 
+                        LEFT JOIN users u ON t.user_id = u.id 
+                        WHERE (u.role = 'teacher' AND u.id IS NOT NULL)
+                        ORDER BY t.name ASC";
+        $teacher_result = $db->query($teacher_query);
+        ?>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th width="5%">#</th>
+                        <th>Name</th>
+                        <th class="d-none d-md-table-cell">Username</th>
+                        <th class="d-none d-lg-table-cell">Department</th>
+                        <th width="10%">Status</th>
+                        <th width="15%">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    $counter = 1;
+                    while($row = $teacher_result->fetch(PDO::FETCH_ASSOC)):
+                        if(!empty($row['username'])):
+                    ?>
+                    <tr>
+                        <td><?php echo $counter++; ?></td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-chalkboard-teacher me-2 text-warning"></i>
+                                <div>
+                                    <div class="fw-bold"><?php echo htmlspecialchars($row['name']); ?></div>
+                                    <small class="text-muted d-md-none"><?php echo htmlspecialchars($row['username']); ?></small>
+                                    <small class="text-muted d-lg-none"><?php echo htmlspecialchars($row['department']); ?></small>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="d-none d-md-table-cell">
+                            <code><?php echo htmlspecialchars($row['username']); ?></code>
+                        </td>
+                        <td class="d-none d-lg-table-cell">
+                            <?php echo htmlspecialchars($row['department']); ?>
+                        </td>
+                        <td>
+                            <span class="badge bg-<?php echo $row['status'] == 'active' ? 'success' : 'secondary'; ?>">
+                                <i class="fas fa-circle me-1" style="font-size: 0.6em;"></i>
+                                <?php echo ucfirst($row['status']); ?>
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <form method="POST" class="d-inline">
+                                    <input type="hidden" name="user_id" value="<?php echo $row['user_id']; ?>">
+                                    <input type="hidden" name="action" value="<?php echo $row['status'] == 'active' ? 'deactivate' : 'activate'; ?>">
+                                    <button type="submit" class="btn btn-<?php echo $row['status'] == 'active' ? 'outline-warning' : 'outline-success'; ?>">
+                                        <i class="fas fa-<?php echo $row['status'] == 'active' ? 'user-slash' : 'user-check'; ?>"></i>
+                                        <span class="d-none d-sm-inline"><?php echo $row['status'] == 'active' ? 'Deactivate' : 'Activate'; ?></span>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php 
+                        endif;
+                    endwhile; 
+                    ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
     <!-- Add Leadership Modal -->
     <div class="modal fade" id="addLeadershipModal" tabindex="-1">
@@ -898,6 +1112,23 @@ function getAssignedCoordinators($db, $supervisor_id) {
             
             // Initialize on page load
             toggleSpecializations();
+        });
+        // Enhance mobile experience
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add tooltips for truncated content
+            const chips = document.querySelectorAll('.coordinator-chips .badge, .specialization-chips .badge');
+            chips.forEach(chip => {
+                if (chip.scrollWidth > chip.clientWidth) {
+                    chip.setAttribute('data-bs-toggle', 'tooltip');
+                    chip.setAttribute('title', chip.textContent);
+                }
+            });
+            
+            // Initialize Bootstrap tooltips
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
         });
     </script>
 </body>
