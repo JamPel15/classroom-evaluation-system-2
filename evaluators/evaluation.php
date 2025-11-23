@@ -100,12 +100,14 @@ if($_POST && isset($_POST['submit_evaluation'])) {
                 </div>
             </div>
             
+
             <!-- Evaluation Form -->
             <div id="evaluationFormContainer" class="d-none">
+                <!-- Form Code Box (matches PDF export style) -->
+               
                 <form id="evaluationForm" method="POST">
                     <input type="hidden" id="draft_evaluation_id" name="evaluation_id" value="">
                     <input type="hidden" name="teacher_id" id="selected_teacher_id">
-                    
                     <div class="card">
                         <div class="card-header">
                                 <h5 class="mb-0 text-center">CLASSROOM EVALUATION FORM</h5>
@@ -638,30 +640,32 @@ if($_POST && isset($_POST['submit_evaluation'])) {
                                 </div>
                                 
                                 <!-- Form Details -->
-                                <div class="mt-4 p-3 bg-light">
-                                    <div class="row">
-                                        <div class="col-md-3">
-                                            <strong>Form Code No.</strong>
-                                            <p>FM-DPM-SMCC-QM-02</p>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <strong>Name Status</strong>
-                                            <p>: 01</p>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <strong>Revision No.</strong>
-                                            <p>: 01</p>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <strong>Date Effective</strong>
-                                            <p>: 21 September 2023</p>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <strong>Argument By</strong>
-                                        <p>: President</p>
-                                    </div>
-                                </div>
+                                <!-- New Form Code Bar (horizontal, wide, above Save Draft) -->
+                                 <div style="border: 2px solid #000000ff; border-radius: 8px; padding: 16px; margin-bottom: 24px; background: #f8faff; max-width: 500px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="background: #1976d2; color: #fff; font-weight: bold; width: 48%; padding: 6px 12px; border-top-left-radius: 4px;">Form Code No.</td>
+                            <td style="padding: 6px 12px; color: #222; border-top-right-radius: 4px;">: FM-DPM-SMCC-RTH-04</td>
+                        </tr>
+                        <tr>
+                            <td style="background: #1976d2; color: #fff; font-weight: bold; padding: 6px 12px;">Issue Status</td>
+                            <td style="padding: 6px 12px; color: #222;">: 02</td>
+                        </tr>
+                        <tr>
+                            <td style="background: #1976d2; color: #fff; font-weight: bold; padding: 6px 12px;">Revision No.</td>
+                            <td style="padding: 6px 12px; color: #222;">: 02</td>
+                        </tr>
+                        <tr>
+                            <td style="background: #1976d2; color: #fff; font-weight: bold; padding: 6px 12px;">Date Effective</td>
+                            <td style="padding: 6px 12px; color: #222;">: 13 September 2023</td>
+                        </tr>
+                        <tr>
+                            <td style="background: #1976d2; color: #fff; font-weight: bold; padding: 6px 12px; border-bottom-left-radius: 4px;">Approved By</td>
+                            <td style="padding: 6px 12px; color: #222; border-bottom-right-radius: 4px;">: President</td>
+                        </tr>
+                    </table>
+                </div>
+                                <!-- END New Form Code Bar -->
                             </div>
                             
                             <!-- Form Actions -->
@@ -710,7 +714,17 @@ if($_POST && isset($_POST['submit_evaluation'])) {
             const urlParams = new URLSearchParams(window.location.search);
             const preselectTeacher = urlParams.get('teacher_id');
             if (preselectTeacher) {
-                // If the teacher list is present, start evaluation immediately
+                // If the teacher list is present, try to prefill the form from that list item then start
+                const preItem = document.querySelector(`.teacher-item[data-teacher-id="${preselectTeacher}"]`);
+                if (preItem) {
+                    const nameElem = preItem.querySelector('h6');
+                    const deptElem = preItem.querySelector('p');
+                    const facultyNameInput = document.getElementById('facultyName');
+                    const departmentInput = document.getElementById('department');
+
+                    if (facultyNameInput && nameElem) facultyNameInput.value = nameElem.textContent.trim();
+                    if (departmentInput && deptElem) departmentInput.value = deptElem.textContent.trim();
+                }
                 startEvaluation(preselectTeacher);
             }
         });
@@ -720,6 +734,19 @@ if($_POST && isset($_POST['submit_evaluation'])) {
             document.querySelectorAll('.teacher-item').forEach(item => {
                 item.addEventListener('click', function() {
                     const teacherId = this.getAttribute('data-teacher-id');
+                    // Auto-fill the form fields from the clicked item
+                    const nameElem = this.querySelector('h6');
+                    const deptElem = this.querySelector('p');
+                    const facultyNameInput = document.getElementById('facultyName');
+                    const departmentInput = document.getElementById('department');
+
+                    if (facultyNameInput && nameElem) {
+                        facultyNameInput.value = nameElem.textContent.trim();
+                    }
+                    if (departmentInput && deptElem) {
+                        departmentInput.value = deptElem.textContent.trim();
+                    }
+
                     startEvaluation(teacherId);
                 });
             });
@@ -927,9 +954,32 @@ if($_POST && isset($_POST['submit_evaluation'])) {
             container.style.padding = '20px';
             container.style.fontFamily = 'Arial, sans-serif';
 
-            const title = document.createElement('h2');
-            title.textContent = 'Classroom Evaluation Report';
-            container.appendChild(title);
+
+                        // Form Code Box (styled)
+                        const formCodeBox = document.createElement('div');
+                        formCodeBox.style.display = 'inline-block';
+                        formCodeBox.style.border = '1px solid #1976d2';
+                        formCodeBox.style.borderLeft = '8px solid #1976d2';
+                        formCodeBox.style.background = '#f8fafd';
+                        formCodeBox.style.padding = '10px 18px 10px 14px';
+                        formCodeBox.style.marginBottom = '18px';
+                        formCodeBox.style.marginTop = '8px';
+                        formCodeBox.style.fontSize = '15px';
+                        formCodeBox.style.width = 'auto';
+                        formCodeBox.innerHTML = `
+                                <table style="border:none;border-collapse:collapse;font-size:15px;">
+                                    <tr><td style="padding:2px 12px 2px 0;"><b>Form Code No.</b></td><td>: FM-DPM-SMCC-RTH-04</td></tr>
+                                    <tr><td style="padding:2px 12px 2px 0;"><b>Issue Status</b></td><td>: 02</td></tr>
+                                    <tr><td style="padding:2px 12px 2px 0;"><b>Revision No.</b></td><td>: 02</td></tr>
+                                    <tr><td style="padding:2px 12px 2px 0;"><b>Date Effective</b></td><td>: 13 September 2023</td></tr>
+                                    <tr><td style="padding:2px 12px 2px 0;"><b>Approved By</b></td><td>: President</td></tr>
+                                </table>
+                        `;
+                        container.appendChild(formCodeBox);
+
+                        const title = document.createElement('h2');
+                        title.textContent = 'Classroom Evaluation Report';
+                        container.appendChild(title);
 
             const meta = document.createElement('div');
             meta.innerHTML = `

@@ -67,7 +67,7 @@ if ($role === 'president') {
         <div class="container-fluid">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h3></h3>
-                <span>Welcome, <?php echo htmlspecialchars($_SESSION['name']); ?> (<?php echo ucfirst(str_replace('_',' ',$_SESSION['role'])); ?>)</span>
+                
             </div>
 
             <div class="card shadow-sm">
@@ -84,7 +84,7 @@ if ($role === 'president') {
                                     <table class="table table-hover align-middle text-center">
                                         <thead class="table-dark">
                                             <tr>
-                                                <th style="width: 10%;">#</th>
+                                                <th style="width: 10%;">No.</th>
                                                 <th style="width: 5%;">Name</th>
                                                 <th style="width: 25%;">Department</th>
                                                 <th style="width: 15%;">Actions</th>

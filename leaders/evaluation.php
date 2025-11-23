@@ -17,10 +17,22 @@ $db = $database->getConnection();
 $teacher = new Teacher($db);
 $evaluation = new Evaluation($db);
 
-// Presidents and Vice Presidents can evaluate across all departments
+// Department filter from GET (used to restrict teacher list when user selects from dropdown)
+$filterDept = '';
+if (isset($_GET['filter_department'])) {
+    $filterDept = trim($_GET['filter_department']);
+}
+
+// Presidents and Vice Presidents can evaluate across all departments.
+// If a department filter is provided via GET, use it to fetch only that department's active teachers.
 if(in_array($_SESSION['role'], ['president', 'vice_president'])) {
-    $teachers = $teacher->getAllTeachers('active');
+    if ($filterDept !== '') {
+        $teachers = $teacher->getActiveByDepartment($filterDept);
+    } else {
+        $teachers = $teacher->getAllTeachers('active');
+    }
 } else {
+    // Non-presidents are limited to their own department
     $teachers = $teacher->getActiveByDepartment($_SESSION['department']);
 }
 
@@ -70,10 +82,31 @@ if($_POST && isset($_POST['submit_evaluation'])) {
                     <h5 class="mb-0">Select Teacher to Evaluate</h5>
                 </div>
                 <div class="card-body">
+                    <?php // Use fixed department list supplied by user ?>
+                    <?php
+                        $departments = ['CCIS','CBM','CTHM','CAS','CTE','CCJE'];
+                    ?>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="departmentFilter" class="form-label">Filter by Department</label>
+                            <select id="departmentFilter" class="form-select" onchange="(function(v){
+                                const params = new URLSearchParams(window.location.search);
+                                if(v) params.set('filter_department', v); else params.delete('filter_department');
+                                window.location.search = params.toString();
+                            })(this.value)">
+                                <option value="" <?php echo ($filterDept === '') ? 'selected' : ''; ?>>All Departments</option>
+                                <?php foreach($departments as $dept): ?>
+                                    <option value="<?php echo htmlspecialchars($dept); ?>" <?php echo (strcasecmp($filterDept, $dept) === 0) ? 'selected' : ''; ?>><?php echo htmlspecialchars($dept); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+
                     <?php if($teachers->rowCount() > 0): ?>
                     <div class="list-group" id="teacherList">
                         <?php while($teacher_row = $teachers->fetch(PDO::FETCH_ASSOC)): ?>
-                        <div class="list-group-item teacher-item" data-teacher-id="<?php echo $teacher_row['id']; ?>">
+                        <div class="list-group-item teacher-item" data-teacher-id="<?php echo $teacher_row['id']; ?>" data-department="<?php echo htmlspecialchars($teacher_row['department']); ?>">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
                                     <h6 class="mb-1"><?php echo htmlspecialchars($teacher_row['name']); ?></h6>
@@ -702,8 +735,9 @@ if($_POST && isset($_POST['submit_evaluation'])) {
             if (raterDate) raterDate.value = today;
             if (facultyDate) facultyDate.value = today;
             
-            // Initialize teacher selection
+            // Initialize teacher selection and search/filter UI
             initializeTeacherSelection();
+            setupTeacherSearch();
 
             // If a teacher_id param is provided in the URL (leaders link), auto-start evaluation
             const urlParams = new URLSearchParams(window.location.search);
@@ -758,6 +792,9 @@ if($_POST && isset($_POST['submit_evaluation'])) {
             document.getElementById('observationDate').value = today;
             document.getElementById('raterDate').value = today;
             document.getElementById('facultyDate').value = today;
+            
+            // Initialize evaluation form behaviors (autosave, averages, AI generation)
+            initializeEvaluationForm();
         }
 
         function showTeacherSelection() {
@@ -1074,27 +1111,58 @@ if($_POST && isset($_POST['submit_evaluation'])) {
                 teacherList.parentNode.insertBefore(teacherSearch, teacherList);
                 
                 const searchInput = document.getElementById('teacherSearch');
-                searchInput.addEventListener('input', function() {
-                    const searchTerm = this.value.toLowerCase();
+                const departmentFilter = document.getElementById('departmentFilter');
+
+                function applyTeacherFilter() {
+                    const searchTerm = (searchInput?.value || '').toLowerCase();
+                    const selectedDept = (departmentFilter?.value || '').trim().toLowerCase();
                     const teacherItems = document.querySelectorAll('.teacher-item');
-                    
+
+                    console.log('[Filter] applyTeacherFilter', { selectedDept, searchTerm, items: teacherItems.length });
+
                     teacherItems.forEach(item => {
-                        const teacherName = item.querySelector('h6').textContent.toLowerCase();
-                        if (teacherName.includes(searchTerm)) {
+                        const teacherName = item.querySelector('h6')?.textContent.toLowerCase() || '';
+                        // Use the displayed department text (in case data-department is formatted differently)
+                        const teacherDeptText = (item.querySelector('p')?.textContent || item.getAttribute('data-department') || '').toLowerCase();
+
+                        const matchesSearch = searchTerm === '' || teacherName.includes(searchTerm);
+                        // Use substring matching so 'CCIS' matches 'CCIS - Some Program' etc.
+                        const matchesDept = selectedDept === '' || teacherDeptText.includes(selectedDept);
+
+                        // Debug log per item (only when dept selected or search term non-empty to reduce noise)
+                        if (selectedDept !== '' || searchTerm !== '') {
+                            console.log('[Filter] item', { name: teacherName, deptText: teacherDeptText, matchesSearch, matchesDept });
+                        }
+
+                        if (matchesSearch && matchesDept) {
                             item.style.display = '';
                         } else {
                             item.style.display = 'none';
                         }
                     });
-                });
+                }
+
+                if (searchInput) {
+                    searchInput.addEventListener('input', applyTeacherFilter);
+                }
+
+                if (departmentFilter) {
+                    departmentFilter.addEventListener('change', function(e) {
+                        console.log('[Filter] department changed to', e.target.value);
+                        applyTeacherFilter();
+                    });
+                    // Also listen to input for compatibility
+                    departmentFilter.addEventListener('input', function(e) {
+                        applyTeacherFilter();
+                    });
+                }
+
+                // Apply initial filter in case a department is already selected on load
+                applyTeacherFilter();
             }
         }
 
-        // Initialize everything when the page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeTeacherSelection();
-            setupTeacherSearch();
-        });
+        // Note: initialization (teacher selection + search setup) is performed in the main DOMContentLoaded above.
     </script>
 </body>
 </html>
