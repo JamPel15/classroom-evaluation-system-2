@@ -11,7 +11,7 @@ $db = $database->getConnection();
 $user = new User($db);
 
 if (!isset($_GET['id'])) {
-    header('Location: evaluator_manage.php');
+    header('Location: users.php');
     exit();
 }
 $id = $_GET['id'];
@@ -41,7 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'username' => $_POST['username'],
         'role' => $_POST['role'],
         'department' => $_POST['department'],
-        'password' => $_POST['password'] ?? ''
+        'password' => $_POST['password'] ?? '',
+        'designation' => isset($_POST['designation']) ? $_POST['designation'] : ''
     ];
     
     // Update user
@@ -84,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    header('Location: evaluator_manage.php');
+    header('Location: users.php');
     exit();
 }
 ?>
@@ -110,6 +111,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .subject-item, .grade-item {
             margin-bottom: 8px;
         }
+        /* Evaluator name/designation preview styles */
+        .evaluator-name-preview {
+            text-transform: uppercase;
+            font-weight: 700;
+            font-size: 1.25rem;
+            letter-spacing: 0.02em;
+        }
+        .evaluator-designation-preview {
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            color: #6c757d;
+            letter-spacing: 0.06em;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -120,7 +135,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <form method="POST" id="editEvaluatorForm">
                 <div class="mb-3">
                     <label class="form-label">Name</label>
-                    <input type="text" class="form-control" name="name" value="<?php echo htmlspecialchars($evaluator['name']); ?>" required>
+                        <input type="text" class="form-control" id="editNameInput" name="name" value="<?php echo htmlspecialchars($evaluator['name']); ?>" required>
+                        <input type="text" class="form-control mt-2" name="designation" id="editDesignationInput" value="<?php echo htmlspecialchars($evaluator['designation'] ?? ''); ?>" placeholder="e.g. IT Program Head" style="display:block; max-width:420px;">
+                        <div id="editEvaluatorPreview" class="mt-3">
+                            <div id="editEvaluatorNamePreview" class="evaluator-name-preview"><?php echo strtoupper(htmlspecialchars($evaluator['name'])); ?></div>
+                            <?php if (!empty($evaluator['designation'])): ?>
+                                <div id="editEvaluatorDesignation" class="evaluator-designation-preview"><?php echo strtoupper(htmlspecialchars($evaluator['designation'])); ?></div>
+                            <?php else: ?>
+                                <div id="editEvaluatorDesignation" class="evaluator-designation-preview" style="display:none;"></div>
+                            <?php endif; ?>
+                        </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Username</label>
@@ -269,6 +293,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             // Initialize on page load
             toggleSpecializations();
+            // Designation map and preview for edit form
+            const editDesignationMap = {
+                'CCIS': 'IT Program Head',
+                'CAS': 'AB Program Head',
+                'CTE': 'Teacher Education Program Head',
+                'CBM': 'Business Program Head',
+                'CCJE': 'Criminal Justice Program Head',
+                'CTHM': 'Tourism & Hospitality Program Head',
+                'ELEM': 'Elementary Program Head',
+                'JHS': 'Junior High Program Head',
+                'SHS': 'Senior High Program Head',
+                'BASIC ED': 'Basic Education Program Head',
+                'BSED': 'BSED Program Head'
+            };
+
+            const editDesignationEl = document.getElementById('editEvaluatorDesignation');
+            const editDesignationInput = document.getElementById('editDesignationInput');
+            const editNameInput = document.getElementById('editNameInput');
+            const editNamePreview = document.getElementById('editEvaluatorNamePreview');
+            const editDesignationPreview = document.getElementById('editEvaluatorDesignation');
+            function updateEditDesignation() {
+                const role = document.getElementById('roleSelect').value;
+                const dept = document.getElementById('departmentSelect').value;
+                if ((role === 'subject_coordinator' || role === 'chairperson' || role === 'grade_level_coordinator') && dept) {
+                    const label = editDesignationMap[dept] || (dept.toUpperCase() + ' Program Head');
+                    editDesignationEl.textContent = label;
+                    editDesignationEl.style.display = 'block';
+                    // If the designation input is empty, populate it with the suggested label
+                    if (editDesignationInput && !editDesignationInput.value) {
+                        editDesignationInput.value = label;
+                    }
+                    // show preview
+                    if (editDesignationPreview) {
+                        editDesignationPreview.textContent = (editDesignationInput && editDesignationInput.value) ? editDesignationInput.value.toUpperCase() : label.toUpperCase();
+                        editDesignationPreview.style.display = 'block';
+                    }
+                } else {
+                    editDesignationEl.style.display = 'none';
+                    if (editDesignationPreview) editDesignationPreview.style.display = 'none';
+                }
+            }
+
+            // Live preview for name and designation
+            function updateNamePreview() {
+                if (editNamePreview && editNameInput) {
+                    editNamePreview.textContent = editNameInput.value ? editNameInput.value.toUpperCase() : '';
+                }
+            }
+
+            if (editNameInput) editNameInput.addEventListener('input', updateNamePreview);
+            if (editDesignationInput) editDesignationInput.addEventListener('input', function() {
+                if (editDesignationPreview) {
+                    editDesignationPreview.textContent = editDesignationInput.value ? editDesignationInput.value.toUpperCase() : '';
+                    editDesignationPreview.style.display = editDesignationInput.value ? 'block' : 'none';
+                }
+            });
+
+            document.getElementById('roleSelect').addEventListener('change', updateEditDesignation);
+            document.getElementById('departmentSelect').addEventListener('change', updateEditDesignation);
+            // Run once to initialize based on current values
+            updateEditDesignation();
         });
     </script>
 </body>

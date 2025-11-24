@@ -31,6 +31,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             case 'create':
                 $role = $_POST['role'];
                 $department = '';
+                                $designation = '';
                 
                 // Only require department/category for these roles
                 if (in_array($role, ['dean', 'principal', 'subject_coordinator', 'chairperson', 'grade_level_coordinator'])) {
@@ -61,7 +62,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                     'password' => $_POST['password'],
                     'name' => $_POST['name'],
                     'role' => $role,
-                    'department' => $department
+                    'department' => $department,
+                    'designation' => isset($_POST['designation']) ? $_POST['designation'] : ''
                 ];
                 
                 $createResult = $user->create($data);
@@ -215,7 +217,7 @@ function getEvaluatorSupervisor($db, $evaluator_id) {
 
 // Get assigned coordinators for supervisors
 function getAssignedCoordinators($db, $supervisor_id) {
-    $query = "SELECT u.id, u.name, u.role, u.department FROM evaluator_assignments ea 
+    $query = "SELECT u.id, u.name, u.role, u.department, u.designation FROM evaluator_assignments ea 
               JOIN users u ON ea.evaluator_id = u.id 
               WHERE ea.supervisor_id = :supervisor_id 
               ORDER BY u.role, u.name";
@@ -246,6 +248,20 @@ function getAssignedCoordinators($db, $supervisor_id) {
         }
         .subject-item, .grade-item {
             margin-bottom: 8px;
+        }
+        /* Evaluator name/designation styles to match preview */
+        .evaluator-name {
+            text-transform: uppercase;
+            font-weight: 700;
+            font-size: 1rem;
+            letter-spacing: 0.02em;
+        }
+        .evaluator-designation {
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            color: #6c757d;
+            letter-spacing: 0.06em;
+            margin-top: 3px;
         }
         .assign-btn {
             margin-left: 10px;
@@ -479,6 +495,12 @@ function getAssignedCoordinators($db, $supervisor_id) {
                 </tbody>
             </table>
         </div>
+                            <!-- Designation (for Coordinators) -->
+                            <div class="mb-3" id="designationContainer" style="display: none;">
+                                <label class="form-label">Designation / Program Head</label>
+                                <input type="text" class="form-control" name="designation" id="designationInput" placeholder="e.g. IT Program Head">
+                                <div class="form-text">Optional: editable title displayed under the evaluator's name.</div>
+                            </div>
     </div>
 </div>
 
@@ -536,7 +558,7 @@ function getAssignedCoordinators($db, $supervisor_id) {
                             <?php if (!empty($assigned_coordinators)): ?>
                                 <div class="coordinator-chips">
                                     <?php foreach(array_slice($assigned_coordinators, 0, 2) as $coordinator): ?>
-                                        <span class="badge bg-light text-dark border me-1 mb-1" title="<?php echo htmlspecialchars($coordinator['name']); ?>">
+                                        <span class="badge bg-light text-dark border me-1 mb-1" title="<?php echo htmlspecialchars($coordinator['name'] . (!empty($coordinator['designation']) ? ' - ' . $coordinator['designation'] : '')); ?>">
                                             <?php echo htmlspecialchars($coordinator['name']); ?>
                                             <small>(<?php echo ucfirst(str_replace('_', ' ', $coordinator['role'])); ?>)</small>
                                         </span>
@@ -634,7 +656,10 @@ function getAssignedCoordinators($db, $supervisor_id) {
                             <div class="d-flex align-items-center">
                                 <i class="fas fa-user me-2 text-success"></i>
                                 <div>
-                                    <div class="fw-bold"><?php echo htmlspecialchars($row['name']); ?></div>
+                                    <div class="evaluator-name"><?php echo htmlspecialchars($row['name']); ?></div>
+                                    <?php if (!empty($row['designation'])): ?>
+                                        <div class="evaluator-designation"><?php echo htmlspecialchars($row['designation']); ?></div>
+                                    <?php endif; ?>
                                     <small class="text-muted d-lg-none"><?php echo htmlspecialchars($row['username']); ?></small>
                                 </div>
                             </div>
@@ -1043,10 +1068,26 @@ function getAssignedCoordinators($db, $supervisor_id) {
             const roleSelect = document.getElementById('roleSelect');
             const departmentSelect = document.getElementById('departmentSelect');
             const supervisorContainer = document.getElementById('supervisorContainer');
+            const designationContainer = document.getElementById('designationContainer');
+            const designationInput = document.getElementById('designationInput');
             const subjectsContainer = document.getElementById('subjectsContainer');
             const gradeLevelsContainer = document.getElementById('gradeLevelsContainer');
             const subjectsList = document.getElementById('subjectsList');
             const gradeLevelsList = document.getElementById('gradeLevelsList');
+
+            const designationMap = {
+                'CCIS': 'IT Program Head',
+                'CAS': 'AB Program Head',
+                'CTE': 'Teacher Education Program Head',
+                'CBM': 'Business Program Head',
+                'CCJE': 'Criminal Justice Program Head',
+                'CTHM': 'Tourism & Hospitality Program Head',
+                'ELEM': 'Elementary Program Head',
+                'JHS': 'Junior High Program Head',
+                'SHS': 'Senior High Program Head',
+                'BASIC_ED': 'Basic Education Program Head',
+                'BSED': 'BSED Program Head'
+            };
 
             function toggleSpecializations() {
                 const role = roleSelect.value;
@@ -1060,6 +1101,13 @@ function getAssignedCoordinators($db, $supervisor_id) {
                 // Show supervisor selection for coordinators
                 if (role === 'subject_coordinator' || role === 'chairperson' || role === 'grade_level_coordinator') {
                     supervisorContainer.style.display = 'block';
+                    // Show designation input for coordinators
+                    designationContainer.style.display = 'block';
+                    // Auto-populate designation if department has a mapping and input is empty
+                    const mapped = designationMap[department] || (department ? (department.toUpperCase() + ' Program Head') : '');
+                    if (designationInput && mapped && !designationInput.value) {
+                        designationInput.value = mapped;
+                    }
                 }
                 
                 // Show subject/grade level selection
@@ -1071,6 +1119,10 @@ function getAssignedCoordinators($db, $supervisor_id) {
                 } else if (role === 'grade_level_coordinator') {
                     gradeLevelsContainer.style.display = 'block';
                     populateGradeLevels();
+                }
+                // Hide designation for non-coordinator roles
+                if (!(role === 'subject_coordinator' || role === 'chairperson' || role === 'grade_level_coordinator')) {
+                    designationContainer.style.display = 'none';
                 }
             }
 

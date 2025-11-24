@@ -10,7 +10,19 @@
     </div>
     
     <ul class="sidebar-nav">
-        <li><a href="dashboard.php" class="nav-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+        <?php
+            // Resolve dashboard link depending on role to avoid duplicate dashboards for coordinators
+            $role = $_SESSION['role'] ?? '';
+            $dashboard_link = 'dashboard.php';
+            if ($role === 'chairperson') {
+                $dashboard_link = 'chairperson.php';
+            } elseif ($role === 'subject_coordinator') {
+                $dashboard_link = 'subject_coordinator.php';
+            } elseif ($role === 'grade_level_coordinator') {
+                $dashboard_link = 'grade_level_coordinator.php';
+            }
+        ?>
+        <li><a href="<?php echo $dashboard_link; ?>" class="nav-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
         <?php if($_SESSION['role'] == 'edp'): ?>
             <li><a href="../edp/users.php" class="nav-link"><i class="fas fa-user-plus"></i> Create User Accounts</a></li>
         <?php elseif($_SESSION['role'] == 'superadmin'): ?>

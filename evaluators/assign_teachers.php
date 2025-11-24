@@ -40,27 +40,61 @@ if(isset($_GET['evaluator_id']) && in_array($_SESSION['role'], ['dean', 'princip
     $current_evaluator_id = $_SESSION['user_id'];
 }
 
-// Get evaluator's subjects or grade levels
+// Determine target evaluator (may be the current user or a coordinator being viewed by a supervisor)
 $evaluator_specializations = [];
-if (in_array($_SESSION['role'], ['subject_coordinator', 'chairperson'])) {
+$target_evaluator_id = $current_evaluator_id;
+$target_role = $coordinator_info['role'] ?? $_SESSION['role'];
+
+if (in_array($target_role, ['subject_coordinator', 'chairperson'])) {
     $subjects_query = "SELECT subject FROM evaluator_subjects WHERE evaluator_id = :evaluator_id";
     $subjects_stmt = $db->prepare($subjects_query);
-    $subjects_stmt->bindParam(':evaluator_id', $current_evaluator_id);
+    $subjects_stmt->bindParam(':evaluator_id', $target_evaluator_id);
     $subjects_stmt->execute();
     $evaluator_specializations = $subjects_stmt->fetchAll(PDO::FETCH_COLUMN, 0);
-} elseif ($_SESSION['role'] === 'grade_level_coordinator') {
+} elseif ($target_role === 'grade_level_coordinator') {
     $grades_query = "SELECT grade_level FROM evaluator_grade_levels WHERE evaluator_id = :evaluator_id";
     $grades_stmt = $db->prepare($grades_query);
-    $grades_stmt->bindParam(':evaluator_id', $current_evaluator_id);
+    $grades_stmt->bindParam(':evaluator_id', $target_evaluator_id);
     $grades_stmt->execute();
     $evaluator_specializations = $grades_stmt->fetchAll(PDO::FETCH_COLUMN, 0);
 }
+        // Only allow dean/principal to assign teachers
+        if (!in_array($_SESSION['role'], ['dean', 'principal'])) {
+            $_SESSION['error'] = "You are not allowed to assign teachers.";
+            header("Location: assign_teachers.php" . ($viewing_coordinator ? "?evaluator_id=" . $current_evaluator_id : ""));
+            exit();
+        }
 
 // Handle teacher assignment
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'assign_teacher') {
+    // Only allow dean/principal to assign teachers
+    if (!in_array($_SESSION['role'], ['dean', 'principal'])) {
+        $_SESSION['error'] = "You are not allowed to assign teachers.";
+        header("Location: assign_teachers.php" . ($viewing_coordinator ? "?evaluator_id=" . $current_evaluator_id : ""));
+        exit();
+    }
+
     $teacher_id = $_POST['teacher_id'];
-    $subject = $_POST['subject'] ?? '';
-    $grade_level = $_POST['grade_level'] ?? '';
+    $subject = trim($_POST['subject'] ?? '');
+    $grade_level = trim($_POST['grade_level'] ?? '');
+    // Allow supervisor to pick target coordinator
+    $assign_target_evaluator_id = $current_evaluator_id;
+    if (in_array($_SESSION['role'], ['dean', 'principal']) && !empty($_POST['target_evaluator_id'])) {
+        $possible_target = (int)$_POST['target_evaluator_id'];
+        // validate target is a coordinator in the same department
+        $v_query = "SELECT id, role FROM users WHERE id = :id AND role IN ('chairperson','subject_coordinator','grade_level_coordinator') AND department = :dept AND status = 'active' LIMIT 1";
+        $v_stmt = $db->prepare($v_query);
+        $v_stmt->bindParam(':id', $possible_target);
+        $v_stmt->bindParam(':dept', $_SESSION['department']);
+        $v_stmt->execute();
+        if ($v_stmt->rowCount() > 0) {
+            $assign_target_evaluator_id = $possible_target;
+        } else {
+            $_SESSION['error'] = "Invalid target coordinator selected.";
+            header("Location: assign_teachers.php" . ($viewing_coordinator ? "?evaluator_id=" . $current_evaluator_id : ""));
+            exit();
+        }
+    }
     
     // Check if assignment already exists
     $check_query = "SELECT id FROM teacher_assignments WHERE evaluator_id = :evaluator_id AND teacher_id = :teacher_id";
@@ -71,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
     
     $check_stmt = $db->prepare($check_query);
-    $check_stmt->bindParam(':evaluator_id', $current_evaluator_id);
+    $check_stmt->bindParam(':evaluator_id', $assign_target_evaluator_id);
     $check_stmt->bindParam(':teacher_id', $teacher_id);
     if (!empty($subject)) {
         $check_stmt->bindParam(':subject', $subject);
@@ -81,10 +115,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $check_stmt->execute();
     
     if ($check_stmt->rowCount() === 0) {
+        // Prevent assigning a teacher who is already assigned to a different chairperson
+        $chair_check_query = "SELECT ta.id FROM teacher_assignments ta JOIN users u ON ta.evaluator_id = u.id WHERE u.role = 'chairperson' AND ta.teacher_id = :teacher_id AND ta.evaluator_id != :evaluator_id LIMIT 1";
+        $chair_check_stmt = $db->prepare($chair_check_query);
+        $chair_check_stmt->bindParam(':teacher_id', $teacher_id);
+        $chair_check_stmt->bindParam(':evaluator_id', $assign_target_evaluator_id);
+        $chair_check_stmt->execute();
+        if ($chair_check_stmt->rowCount() > 0) {
+            $_SESSION['error'] = "Teacher is already assigned to a chairperson and cannot be reassigned.";
+            header("Location: assign_teachers.php" . ($viewing_coordinator ? "?evaluator_id=" . $current_evaluator_id : ""));
+            exit();
+        }
         $insert_query = "INSERT INTO teacher_assignments (evaluator_id, teacher_id, subject, grade_level, assigned_at) 
-                        VALUES (:evaluator_id, :teacher_id, :subject, :grade_level, NOW())";
+                VALUES (:evaluator_id, :teacher_id, :subject, :grade_level, NOW())";
         $insert_stmt = $db->prepare($insert_query);
-        $insert_stmt->bindParam(':evaluator_id', $current_evaluator_id);
+        $insert_stmt->bindParam(':evaluator_id', $assign_target_evaluator_id);
         $insert_stmt->bindParam(':teacher_id', $teacher_id);
         $insert_stmt->bindParam(':subject', $subject);
         $insert_stmt->bindParam(':grade_level', $grade_level);
@@ -104,6 +149,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Handle teacher removal
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'remove_assignment') {
+    // Only allow dean/principal to remove assignments
+    if (!in_array($_SESSION['role'], ['dean', 'principal'])) {
+        $_SESSION['error'] = "You are not allowed to remove assignments.";
+        header("Location: assign_teachers.php" . ($viewing_coordinator ? "?evaluator_id=" . $current_evaluator_id : ""));
+        exit();
+    }
+
     $assignment_id = $_POST['assignment_id'];
     
     $delete_query = "DELETE FROM teacher_assignments WHERE id = :assignment_id AND evaluator_id = :evaluator_id";
@@ -134,6 +186,16 @@ $assigned_teachers = $assigned_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Get available teachers (not assigned to this evaluator for the same department)
 $available_teachers = $teacher->getActiveByDepartment($_SESSION['department']);
+
+// If current user is a supervisor, load coordinators list for dropdown (exclude chairpersons)
+$coordinators = [];
+if (in_array($_SESSION['role'], ['dean', 'principal'])) {
+    $coord_query = "SELECT id, name, role FROM users WHERE role IN ('subject_coordinator','grade_level_coordinator') AND department = :dept AND status = 'active' ORDER BY name";
+    $coord_stmt = $db->prepare($coord_query);
+    $coord_stmt->bindParam(':dept', $_SESSION['department']);
+    $coord_stmt->execute();
+    $coordinators = $coord_stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 ?>
 
 <!DOCTYPE html>
@@ -199,17 +261,6 @@ $available_teachers = $teacher->getActiveByDepartment($_SESSION['department']);
                         Assign Teachers - <?php echo $_SESSION['department']; ?>
                     <?php endif; ?>
                 </h3>
-                <div>
-                    <?php if($viewing_coordinator): ?>
-                        <a href="assign_coordinators.php" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left me-2"></i>Back to Coordinators
-                        </a>
-                    <?php else: ?>
-                        <a href="dashboard.php" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
-                        </a>
-                    <?php endif; ?>
-                </div>
             </div>
 
             <?php if(isset($_SESSION['success'])): ?>
@@ -266,7 +317,7 @@ $available_teachers = $teacher->getActiveByDepartment($_SESSION['department']);
             </div>
 
             <!-- Assign New Teacher -->
-            <?php if(!$viewing_coordinator && !empty($evaluator_specializations)): ?>
+            <?php if(in_array($_SESSION['role'], ['dean', 'principal'])): ?>
             <div class="form-container">
                 <h5><i class="fas fa-plus-circle me-2"></i>Assign New Teacher</h5>
                 <form method="POST">
@@ -277,16 +328,17 @@ $available_teachers = $teacher->getActiveByDepartment($_SESSION['department']);
                                 <label class="form-label">Teacher</label>
                                 <select class="form-select" name="teacher_id" required>
                                     <option value="">Select Teacher</option>
-                                    <?php while($teacher_row = $available_teachers->fetch(PDO::FETCH_ASSOC)): 
-                                        // Check if teacher is already assigned
-                                        $is_assigned = false;
-                                        foreach($assigned_teachers as $assigned) {
-                                            if ($assigned['teacher_id'] == $teacher_row['id']) {
-                                                $is_assigned = true;
-                                                break;
-                                            }
+                                    <?php while($teacher_row = $available_teachers->fetch(PDO::FETCH_ASSOC)):
+                                        // Exclude teachers whose name matches any chairperson's name in this department
+                                        $exclude = false;
+                                        $chair_query = $db->prepare("SELECT 1 FROM users WHERE role = 'chairperson' AND department = :dept AND name = :name LIMIT 1");
+                                        $chair_query->bindParam(':dept', $_SESSION['department']);
+                                        $chair_query->bindParam(':name', $teacher_row['name']);
+                                        $chair_query->execute();
+                                        if ($chair_query->fetchColumn()) {
+                                            $exclude = true;
                                         }
-                                        if (!$is_assigned):
+                                        if (!$exclude):
                                     ?>
                                         <option value="<?php echo $teacher_row['id']; ?>">
                                             <?php echo htmlspecialchars($teacher_row['name']); ?>
@@ -295,37 +347,16 @@ $available_teachers = $teacher->getActiveByDepartment($_SESSION['department']);
                                 </select>
                             </div>
                         </div>
+
                         <div class="col-md-4">
-                            <?php if (in_array($_SESSION['role'], ['subject_coordinator', 'chairperson'])): ?>
                             <div class="mb-3">
-                                <label class="form-label">Subject</label>
-                                <select class="form-select" name="subject" required>
-                                    <option value="">Select Subject</option>
-                                    <?php foreach($evaluator_specializations as $subject): ?>
-                                        <option value="<?php echo htmlspecialchars($subject); ?>"><?php echo htmlspecialchars($subject); ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <label class="form-label">Subject (optional)</label>
+                                <input type="text" name="subject" class="form-control" placeholder="eg. Mathematics">
                             </div>
-                            <?php elseif ($_SESSION['role'] === 'grade_level_coordinator'): ?>
                             <div class="mb-3">
-                                <label class="form-label">Grade Level</label>
-                                <select class="form-select" name="grade_level" required>
-                                    <option value="">Select Grade Level</option>
-                                    <?php foreach($evaluator_specializations as $grade): ?>
-                                        <option value="<?php echo htmlspecialchars($grade); ?>">Grade <?php echo htmlspecialchars($grade); ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <label class="form-label">Grade Level (optional)</label>
+                                <input type="text" name="grade_level" class="form-control" placeholder="eg. 7">
                             </div>
-                            <?php else: ?>
-                            <div class="mb-3">
-                                <label class="form-label">Assignment Type</label>
-                                <select class="form-select" name="assignment_type" required>
-                                    <option value="general">General Evaluation</option>
-                                </select>
-                            </div>
-                            <?php endif; ?>
-                        </div>
-                        <div class="col-md-4">
                             <div class="mb-3 d-flex align-items-end">
                                 <button type="submit" class="btn btn-primary">
                                     <i class="fas fa-user-plus me-2"></i>Assign Teacher
@@ -381,7 +412,7 @@ $available_teachers = $teacher->getActiveByDepartment($_SESSION['department']);
                                             <strong><?php echo htmlspecialchars($assignment['teacher_name']); ?></strong>
                                             <small class="text-muted ms-2"><?php echo htmlspecialchars($assignment['department']); ?></small>
                                         </div>
-                                        <?php if(!$viewing_coordinator): ?>
+                                        <?php if(in_array($_SESSION['role'], ['dean', 'principal'])): ?>
                                         <form method="POST" style="display: inline;">
                                             <input type="hidden" name="action" value="remove_assignment">
                                             <input type="hidden" name="assignment_id" value="<?php echo $assignment['id']; ?>">

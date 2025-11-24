@@ -2,6 +2,14 @@
 require_once '../auth/session-check.php';
 
 // Redirect based on role
+// If a coordinator somehow reaches the general evaluators dashboard, send them to their role-specific page
+if (in_array($_SESSION['role'], ['chairperson', 'subject_coordinator', 'grade_level_coordinator'])) {
+    $r = $_SESSION['role'];
+    if ($r === 'chairperson') header('Location: chairperson.php');
+    if ($r === 'subject_coordinator') header('Location: subject_coordinator.php');
+    if ($r === 'grade_level_coordinator') header('Location: grade_level_coordinator.php');
+    exit();
+}
 if(in_array($_SESSION['role'], ['president', 'vice_president'])) {
     header("Location: ../leaders/dashboard.php");
     exit();
@@ -47,6 +55,8 @@ if(in_array($_SESSION['role'], ['dean', 'principal'])) {
     $assigned_coordinators = $coordinators_stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+// supervisor notifications for coordinators removed (notifications are shown only on coordinator dashboards)
+
 // Get supervisor info (for coordinators)
 $supervisor_info = [];
 if(in_array($_SESSION['role'], ['subject_coordinator', 'chairperson', 'grade_level_coordinator'])) {
@@ -60,6 +70,16 @@ if(in_array($_SESSION['role'], ['subject_coordinator', 'chairperson', 'grade_lev
     $supervisor_stmt->bindParam(':evaluator_id', $_SESSION['user_id']);
     $supervisor_stmt->execute();
     $supervisor_info = $supervisor_stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+// Get schedule notifications for coordinators (SCHEDULE_ASSIGNED)
+$notifications = [];
+if (in_array($_SESSION['role'], ['subject_coordinator', 'chairperson', 'grade_level_coordinator'])) {
+    $notif_q = "SELECT * FROM audit_logs WHERE user_id = :user_id AND action = 'SCHEDULE_ASSIGNED' ORDER BY created_at DESC LIMIT 5";
+    $notif_stmt = $db->prepare($notif_q);
+    $notif_stmt->bindParam(':user_id', $_SESSION['user_id']);
+    $notif_stmt->execute();
+    $notifications = $notif_stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 // Get assigned teachers count
@@ -125,6 +145,35 @@ if(in_array($_SESSION['role'], ['subject_coordinator', 'chairperson', 'grade_lev
             <!-- Organizational Hierarchy Info -->
             <div class="row mb-4">
                 <?php if(in_array($_SESSION['role'], ['dean', 'principal'])): ?>
+                <!-- Dean/Principal: show assigned coordinators and their notifications -->
+                <div class="col-12">
+                    <div class="card mb-3">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="fas fa-users-cog me-2"></i>My Coordinators</h5>
+                        </div>
+                        <div class="card-body">
+                            <?php if(!empty($assigned_coordinators)): ?>
+                                <ul class="list-group">
+                                    <?php foreach($assigned_coordinators as $coord): ?>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <strong><?php echo htmlspecialchars($coord['name']); ?></strong>
+                                                <span class="text-muted ms-2"><?php echo ucfirst(str_replace('_',' ',$coord['role'])); ?></span>
+                                                <div class="text-muted small"><?php echo htmlspecialchars($coord['department']); ?></div>
+                                            </div>
+                                            <div class="btn-group">
+                                                <a href="evaluate_coordinator.php?user_id=<?php echo $coord['id']; ?>" class="btn btn-sm btn-primary">Evaluate</a>
+                                                <a href="assign_teachers.php?evaluator_id=<?php echo $coord['id']; ?>" class="btn btn-sm btn-outline-info">View Teachers</a>
+                                            </div>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            <?php else: ?>
+                                <p class="text-muted mb-0">You have no coordinators assigned.</p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
                 <?php elseif(in_array($_SESSION['role'], ['subject_coordinator', 'chairperson', 'grade_level_coordinator'])): ?>
                     <!-- Coordinator Dashboard -->
                     <div class="col-12">
@@ -178,6 +227,34 @@ if(in_array($_SESSION['role'], ['subject_coordinator', 'chairperson', 'grade_lev
                                             </div>
                                         </div>
                                     </div>
+                                    <?php if(!empty($notifications)): ?>
+                                    <div class="row mt-3">
+                                        <div class="col-12">
+                                            <div class="card border-info">
+                                                <div class="card-header bg-light">
+                                                    <h6 class="mb-0">Notifications <span class="badge bg-info ms-2"><?php echo count($notifications); ?></span></h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <ul class="list-group list-group-flush">
+                                                        <?php foreach($notifications as $n): ?>
+                                                        <li class="list-group-item">
+                                                            <div><strong><?php echo htmlspecialchars($n['action']); ?></strong></div>
+                                                            <div><?php echo htmlspecialchars($n['description']); ?></div>
+                                                            <div class="small text-muted mt-1"><?php echo date('M j, Y g:ia', strtotime($n['created_at'])); ?></div>
+                                                        </li>
+                                                        <?php endforeach; ?>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <?php else: ?>
+                                    <div class="row mt-3">
+                                        <div class="col-12">
+                                            <div class="text-muted small">No recent schedule notifications.</div>
+                                        </div>
+                                    </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -247,35 +324,6 @@ if(in_array($_SESSION['role'], ['subject_coordinator', 'chairperson', 'grade_lev
                                     </a>
                                 </div>
                             <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="col-md-4">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">Quick Actions</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-grid gap-2">
-                                <a href="evaluation.php" class="btn btn-primary mb-2">
-                                    <i class="fas fa-clipboard-check me-2"></i>New Evaluation
-                                </a>
-                                <a href="teachers.php" class="btn btn-outline-primary mb-2">
-                                    <i class="fas fa-users me-2"></i>Manage Teachers
-                                </a>
-                                <?php if(in_array($_SESSION['role'], ['dean', 'principal'])): ?>
-                                    <a href="assign_coordinators.php?supervisor_id=<?php echo $_SESSION['user_id']; ?>" class="btn btn-outline-success mb-2">
-                                        <i class="fas fa-user-plus me-2"></i>Assign Coordinators
-                                    </a>
-                                <?php endif; ?>
-                                <a href="assign_teachers.php?evaluator_id=<?php echo $_SESSION['user_id']; ?>" class="btn btn-outline-info mb-2">
-                                    <i class="fas fa-chalkboard-teacher me-2"></i>Assign Teachers
-                                </a>
-                                <a href="reports.php" class="btn btn-outline-secondary">
-                                    <i class="fas fa-chart-bar me-2"></i>View Reports
-                                </a>
-                            </div>
                         </div>
                     </div>
                 </div>

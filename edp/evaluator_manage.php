@@ -17,7 +17,7 @@ foreach ($roles as $role) {
 // Handle deactivate action
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'], $_POST['action']) && $_POST['action'] === 'deactivate') {
     $user->updateStatus($_POST['user_id'], 'inactive');
-    header('Location: evaluator_manage.php');
+    header('Location: users.php');
     exit();
 }
 ?>

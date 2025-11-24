@@ -66,25 +66,8 @@ $coordinators = $user->getUsersByRole('subject_coordinator')->rowCount();
                 </div>
             </div>
 
-            <!-- Quick Actions -->
-            <div class="row mt-4">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">Account Management</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-grid gap-2">
-                                <a href="../edp/users.php" class="btn btn-primary">
-                                    <i class="fas fa-user-plus me-2"></i>Create User Accounts
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Evaluators Summary -->
-                <div class="col-md-6">
+                <div class="col-md-15 mt-4">
                     <div class="card">
                         <div class="card-header">
                             <h5 class="mb-0">Evaluators Summary</h5>

@@ -57,11 +57,17 @@ class Teacher {
 
     // Get active teachers by department
     public function getActiveByDepartment($department) {
-        $query = "SELECT * FROM " . $this->table_name . " WHERE department = :department AND status = 'active' ORDER BY name ASC";
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':department', $department);
-        $stmt->execute();
-        return $stmt;
+                // Exclude teachers who are linked to user accounts with roles 'chairperson' or 'principal'
+                $query = "SELECT t.* FROM " . $this->table_name . " t 
+                                    LEFT JOIN users u ON t.user_id = u.id 
+                                    WHERE t.department = :department 
+                                        AND t.status = 'active' 
+                                        AND (u.role IS NULL OR u.role NOT IN ('chairperson', 'principal'))
+                                    ORDER BY t.name ASC";
+                $stmt = $this->conn->prepare($query);
+                $stmt->bindParam(':department', $department);
+                $stmt->execute();
+                return $stmt;
     }
 
     // Create new teacher

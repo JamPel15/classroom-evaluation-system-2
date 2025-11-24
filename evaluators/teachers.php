@@ -49,6 +49,33 @@ if ($_POST && isset($_POST['action']) && $_POST['action'] === 'update_schedule')
         
         if ($stmt->execute()) {
             $success_message = "Evaluation schedule and room updated successfully!";
+            // If the updated teacher record is linked to a coordinator user, create a notification (audit log)
+            try {
+                $tq = $db->prepare("SELECT user_id, name FROM teachers WHERE id = :id LIMIT 1");
+                $tq->bindParam(':id', $teacher_id);
+                $tq->execute();
+                $tdata = $tq->fetch(PDO::FETCH_ASSOC);
+                if ($tdata && !empty($tdata['user_id'])) {
+                    $uid = $tdata['user_id'];
+                    $uq = $db->prepare("SELECT id, name, role FROM users WHERE id = :id LIMIT 1");
+                    $uq->bindParam(':id', $uid);
+                    $uq->execute();
+                    $uinfo = $uq->fetch(PDO::FETCH_ASSOC);
+                    if ($uinfo && in_array($uinfo['role'], ['chairperson','subject_coordinator','grade_level_coordinator'])) {
+                        $description = sprintf("Schedule set: %s in %s. Set by %s (user_id=%d)", $schedule ?: 'N/A', $room ?: 'N/A', $_SESSION['name'], $_SESSION['user_id']);
+                        $log_q = $db->prepare("INSERT INTO audit_logs (user_id, action, description, ip_address) VALUES (:user_id, :action, :description, :ip)");
+                        $action = 'SCHEDULE_ASSIGNED';
+                        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+                        $log_q->bindParam(':user_id', $uid);
+                        $log_q->bindParam(':action', $action);
+                        $log_q->bindParam(':description', $description);
+                        $log_q->bindParam(':ip', $ip);
+                        $log_q->execute();
+                    }
+                }
+            } catch (Exception $e) {
+                error_log('Schedule notification error: ' . $e->getMessage());
+            }
         } else {
             $error_message = "Failed to update schedule and room.";
         }
@@ -57,67 +84,84 @@ if ($_POST && isset($_POST['action']) && $_POST['action'] === 'update_schedule')
     }
 }
 
-// Handle teacher assignment
+// Handle teacher assignment (only dean/principal may assign)
 if ($_POST && isset($_POST['action']) && $_POST['action'] === 'assign_teacher') {
-    $teacher_id = $_POST['teacher_id'];
-    $subject = $_POST['subject'] ?? '';
-    $grade_level = $_POST['grade_level'] ?? '';
-    
-    // Check if assignment already exists
-    $check_query = "SELECT id FROM teacher_assignments WHERE evaluator_id = :evaluator_id AND teacher_id = :teacher_id";
-    if (!empty($subject)) {
-        $check_query .= " AND subject = :subject";
-    } elseif (!empty($grade_level)) {
-        $check_query .= " AND grade_level = :grade_level";
-    }
-    
-    $check_stmt = $db->prepare($check_query);
-    $check_stmt->bindParam(':evaluator_id', $_SESSION['user_id']);
-    $check_stmt->bindParam(':teacher_id', $teacher_id);
-    if (!empty($subject)) {
-        $check_stmt->bindParam(':subject', $subject);
-    } elseif (!empty($grade_level)) {
-        $check_stmt->bindParam(':grade_level', $grade_level);
-    }
-    $check_stmt->execute();
-    
-    if ($check_stmt->rowCount() === 0) {
-        $insert_query = "INSERT INTO teacher_assignments (evaluator_id, teacher_id, subject, grade_level, assigned_at) 
-                        VALUES (:evaluator_id, :teacher_id, :subject, :grade_level, NOW())";
-        $insert_stmt = $db->prepare($insert_query);
-        $insert_stmt->bindParam(':evaluator_id', $_SESSION['user_id']);
-        $insert_stmt->bindParam(':teacher_id', $teacher_id);
-        $insert_stmt->bindParam(':subject', $subject);
-        $insert_stmt->bindParam(':grade_level', $grade_level);
-        
-        if ($insert_stmt->execute()) {
-            $success_message = "Teacher assigned successfully!";
-        } else {
-            $error_message = "Failed to assign teacher.";
-        }
+    if (!in_array($_SESSION['role'], ['dean', 'principal'])) {
+        $error_message = "You are not allowed to assign teachers.";
     } else {
-        $error_message = "Teacher is already assigned to you.";
+        $teacher_id = $_POST['teacher_id'];
+        $subject = $_POST['subject'] ?? '';
+        $grade_level = $_POST['grade_level'] ?? '';
+        
+        // Check if assignment already exists
+        $check_query = "SELECT id FROM teacher_assignments WHERE evaluator_id = :evaluator_id AND teacher_id = :teacher_id";
+        if (!empty($subject)) {
+            $check_query .= " AND subject = :subject";
+        } elseif (!empty($grade_level)) {
+            $check_query .= " AND grade_level = :grade_level";
+        }
+        
+        $check_stmt = $db->prepare($check_query);
+        $check_stmt->bindParam(':evaluator_id', $_SESSION['user_id']);
+        $check_stmt->bindParam(':teacher_id', $teacher_id);
+        if (!empty($subject)) {
+            $check_stmt->bindParam(':subject', $subject);
+        } elseif (!empty($grade_level)) {
+            $check_stmt->bindParam(':grade_level', $grade_level);
+        }
+        $check_stmt->execute();
+        
+        if ($check_stmt->rowCount() === 0) {
+            $insert_query = "INSERT INTO teacher_assignments (evaluator_id, teacher_id, subject, grade_level, assigned_at) 
+                            VALUES (:evaluator_id, :teacher_id, :subject, :grade_level, NOW())";
+            $insert_stmt = $db->prepare($insert_query);
+            $insert_stmt->bindParam(':evaluator_id', $_SESSION['user_id']);
+            $insert_stmt->bindParam(':teacher_id', $teacher_id);
+            $insert_stmt->bindParam(':subject', $subject);
+            $insert_stmt->bindParam(':grade_level', $grade_level);
+            
+            if ($insert_stmt->execute()) {
+                $success_message = "Teacher assigned successfully!";
+            } else {
+                $error_message = "Failed to assign teacher.";
+            }
+        } else {
+            $error_message = "Teacher is already assigned to you.";
+        }
     }
 }
 
-// Handle teacher removal
+// Handle teacher removal (only dean/principal may remove assignments)
 if ($_POST && isset($_POST['action']) && $_POST['action'] === 'remove_assignment') {
     $assignment_id = $_POST['assignment_id'];
     
-    $delete_query = "DELETE FROM teacher_assignments WHERE id = :assignment_id AND evaluator_id = :evaluator_id";
-    $delete_stmt = $db->prepare($delete_query);
-    $delete_stmt->bindParam(':assignment_id', $assignment_id);
-    $delete_stmt->bindParam(':evaluator_id', $_SESSION['user_id']);
-    
-    if ($delete_stmt->execute()) {
-        $success_message = "Teacher assignment removed successfully!";
+    if (!in_array($_SESSION['role'], ['dean', 'principal'])) {
+        $error_message = "You are not allowed to remove assignments.";
     } else {
-        $error_message = "Failed to remove teacher assignment.";
+        // Deans/Principals may remove any assignment by id
+        $delete_query = "DELETE FROM teacher_assignments WHERE id = :assignment_id";
+        $delete_stmt = $db->prepare($delete_query);
+        $delete_stmt->bindParam(':assignment_id', $assignment_id);
+        
+        if ($delete_stmt->execute()) {
+            $success_message = "Teacher assignment removed successfully!";
+        } else {
+            $error_message = "Failed to remove teacher assignment.";
+        }
     }
 }
 
-// Get teachers for current department
-$teachers = $teacher->getByDepartment($_SESSION['department']);
+// Get teachers for current department (or only assigned teachers for coordinators)
+if (in_array($_SESSION['role'], ['subject_coordinator', 'chairperson', 'grade_level_coordinator'])) {
+    $assigned_query = "SELECT t.* FROM teachers t JOIN teacher_assignments ta ON ta.teacher_id = t.id WHERE ta.evaluator_id = :evaluator_id ORDER BY t.name";
+    $stmt = $db->prepare($assigned_query);
+    $stmt->bindParam(':evaluator_id', $_SESSION['user_id']);
+    $stmt->execute();
+    $teachers = $stmt; // keep interface similar (PDOStatement)
+} else {
+    // Deans/principals and others see full department list
+    $teachers = $teacher->getByDepartment($_SESSION['department']);
+}
 
 // Get assigned teachers for current evaluator
 $assigned_query = "SELECT ta.*, t.name as teacher_name, t.department 
@@ -156,6 +200,23 @@ if (isset($_GET['get_teacher']) && isset($_GET['id'])) {
         echo json_encode(['success' => false, 'message' => 'Teacher not found']);
     }
     exit();
+}
+
+// Get assigned coordinators (for deans/principals)
+$assigned_coordinators = [];
+if (in_array($_SESSION['role'], ['dean', 'principal'])) {
+    $coordinators_query = "
+        SELECT u.id, u.name, u.role, u.department 
+        FROM evaluator_assignments ea 
+        JOIN users u ON ea.evaluator_id = u.id 
+        WHERE ea.supervisor_id = :supervisor_id 
+        AND u.status = 'active'
+        ORDER BY u.role, u.name
+    ";
+    $coordinators_stmt = $db->prepare($coordinators_query);
+    $coordinators_stmt->bindParam(':supervisor_id', $_SESSION['user_id']);
+    $coordinators_stmt->execute();
+    $assigned_coordinators = $coordinators_stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>
 <!DOCTYPE html>
@@ -375,77 +436,35 @@ if (isset($_GET['get_teacher']) && isset($_GET['id'])) {
             </div>
             <?php endif; ?>
 
-            <!-- Assign Teacher Form -->
-            <?php if (!empty($evaluator_specializations)): ?>
-            <div class="assign-form-container">
-                <h5><i class="fas fa-user-plus me-2"></i>Assign Teacher to Evaluate</h5>
-                <form method="POST">
-                    <input type="hidden" name="action" value="assign_teacher">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label class="form-label">Teacher</label>
-                                <select class="form-select" name="teacher_id" required>
-                                    <option value="">Select Teacher</option>
-                                    <?php 
-                                    $teachers->execute(); // Re-execute the query since we used it before
-                                    while($teacher_row = $teachers->fetch(PDO::FETCH_ASSOC)): 
-                                        // Check if teacher is already assigned
-                                        $is_assigned = false;
-                                        foreach($assigned_teachers as $assigned) {
-                                            if ($assigned['teacher_id'] == $teacher_row['id']) {
-                                                $is_assigned = true;
-                                                break;
-                                            }
-                                        }
-                                        if (!$is_assigned):
-                                    ?>
-                                        <option value="<?php echo $teacher_row['id']; ?>">
-                                            <?php echo htmlspecialchars($teacher_row['name']); ?>
-                                        </option>
-                                    <?php endif; endwhile; ?>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <?php if (in_array($_SESSION['role'], ['subject_coordinator', 'chairperson'])): ?>
-                            <div class="mb-3">
-                                <label class="form-label">Subject</label>
-                                <select class="form-select" name="subject" required>
-                                    <option value="">Select Subject</option>
-                                    <?php foreach($evaluator_specializations as $subject): ?>
-                                        <option value="<?php echo htmlspecialchars($subject); ?>"><?php echo htmlspecialchars($subject); ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <?php elseif ($_SESSION['role'] === 'grade_level_coordinator'): ?>
-                            <div class="mb-3">
-                                <label class="form-label">Grade Level</label>
-                                <select class="form-select" name="grade_level" required>
-                                    <option value="">Select Grade Level</option>
-                                    <?php foreach($evaluator_specializations as $grade): ?>
-                                        <option value="<?php echo htmlspecialchars($grade); ?>">Grade <?php echo htmlspecialchars($grade); ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <?php else: ?>
-                            <div class="mb-3">
-                                <label class="form-label">Assignment Type</label>
-                                <select class="form-select" name="assignment_type" required>
-                                    <option value="general">General Evaluation</option>
-                                </select>
-                            </div>
-                            <?php endif; ?>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-user-plus me-2"></i>Assign Teacher
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </form>
+            <!-- Assign Teacher form removed (assignments handled via dedicated pages) -->
+
+            <?php if(in_array($_SESSION['role'], ['dean', 'principal'])): ?>
+            <!-- My Coordinators (moved from dashboard) -->
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-users-cog me-2"></i>My Coordinators</h5>
+                </div>
+                <div class="card-body">
+                    <?php if(!empty($assigned_coordinators)): ?>
+                        <ul class="list-group">
+                            <?php foreach($assigned_coordinators as $coord): ?>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong><?php echo htmlspecialchars($coord['name']); ?></strong>
+                                        <span class="text-muted ms-2"><?php echo ucfirst(str_replace('_',' ',$coord['role'])); ?></span>
+                                        <div class="text-muted small"><?php echo htmlspecialchars($coord['department']); ?></div>
+                                    </div>
+                                    <div class="btn-group">
+                                        <a href="evaluate_coordinator.php?user_id=<?php echo $coord['id']; ?>" class="btn btn-sm btn-primary">Evaluate</a>
+                                        <a href="assign_teachers.php?evaluator_id=<?php echo $coord['id']; ?>" class="btn btn-sm btn-outline-info">View Teachers</a>
+                                    </div>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php else: ?>
+                        <p class="text-muted mb-0">You have no coordinators assigned.</p>
+                    <?php endif; ?>
+                </div>
             </div>
             <?php endif; ?>
 
@@ -483,14 +502,16 @@ if (isset($_GET['get_teacher']) && isset($_GET['id'])) {
                                             <small class="text-muted ms-2"><?php echo htmlspecialchars($assignment['department']); ?></small>
                                         </div>
                                         <div>
+                                            <?php if (in_array($_SESSION['role'], ['dean', 'principal'])): ?>
                                             <form method="POST" style="display: inline;">
                                                 <input type="hidden" name="action" value="remove_assignment">
                                                 <input type="hidden" name="assignment_id" value="<?php echo $assignment['id']; ?>">
                                                 <button type="submit" class="btn btn-sm btn-danger" 
-                                                        onclick="return confirm('Remove <?php echo htmlspecialchars($assignment['teacher_name']); ?> from your assignments?')">
+                                                        onclick="return confirm('Remove <?php echo htmlspecialchars($assignment['teacher_name']); ?> from assignments?')">
                                                     <i class="fas fa-times"></i> Remove
                                                 </button>
                                             </form>
+                                            <?php endif; ?>
                                         </div>
                                     </li>
                                     <?php endforeach; ?>

@@ -20,6 +20,13 @@ $evaluation = new Evaluation($db);
 // Presidents and Vice Presidents can evaluate across all departments
 if(in_array($_SESSION['role'], ['president', 'vice_president'])) {
     $teachers = $teacher->getAllTeachers('active');
+} elseif (in_array($_SESSION['role'], ['subject_coordinator', 'chairperson', 'grade_level_coordinator'])) {
+    // Coordinators should only see teachers assigned to them by their supervisor
+    $assigned_query = "SELECT t.* FROM teachers t JOIN teacher_assignments ta ON ta.teacher_id = t.id WHERE ta.evaluator_id = :evaluator_id AND t.status = 'active' ORDER BY t.name";
+    $stmt = $db->prepare($assigned_query);
+    $stmt->bindParam(':evaluator_id', $_SESSION['user_id']);
+    $stmt->execute();
+    $teachers = $stmt; // mimic PDOStatement for compatibility with view loop
 } else {
     $teachers = $teacher->getActiveByDepartment($_SESSION['department']);
 }

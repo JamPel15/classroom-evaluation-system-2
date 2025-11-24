@@ -9,6 +9,7 @@ class User {
     public $name;
     public $role;
     public $department;
+    public $designation;
     public $status;
     public $created_at;
 
@@ -100,8 +101,8 @@ class User {
         }
 
         $query = "INSERT INTO " . $this->table_name . " 
-                  (username, password, name, role, department, status, created_at) 
-                  VALUES (:username, :password, :name, :role, :department, 'active', NOW())";
+              (username, password, name, role, department, designation, status, created_at) 
+              VALUES (:username, :password, :name, :role, :department, :designation, 'active', NOW())";
         $stmt = $this->conn->prepare($query);
         // Hash password
         $hashed_password = password_hash($data['password'], PASSWORD_DEFAULT);
@@ -110,13 +111,16 @@ class User {
         $stmt->bindParam(':name', $data['name']);
         $stmt->bindParam(':role', $data['role']);
         $stmt->bindParam(':department', $data['department']);
+        // bind designation (may be empty)
+        $designation = isset($data['designation']) ? $data['designation'] : null;
+        $stmt->bindParam(':designation', $designation);
         return $stmt->execute();
     }
 
     // Update user
     public function update($id, $data) {
         $query = "UPDATE " . $this->table_name . " 
-                  SET name = :name, role = :role, department = :department";
+              SET name = :name, role = :role, department = :department, designation = :designation";
         
         // Add password update if provided
         if(!empty($data['password'])) {
@@ -130,6 +134,8 @@ class User {
         $stmt->bindParam(':name', $data['name']);
         $stmt->bindParam(':role', $data['role']);
         $stmt->bindParam(':department', $data['department']);
+        $designation = isset($data['designation']) ? $data['designation'] : null;
+        $stmt->bindParam(':designation', $designation);
         $stmt->bindParam(':id', $id);
         
         if(!empty($data['password'])) {
