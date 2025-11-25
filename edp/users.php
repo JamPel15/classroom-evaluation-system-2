@@ -71,42 +71,67 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 // If creating a subject coordinator, chairperson, or grade level coordinator, save their subjects/grade levels
                 if (in_array($role, ['subject_coordinator', 'chairperson', 'grade_level_coordinator']) && $createResult === true) {
                     // Get the newly created user ID
-                    $query = "SELECT id FROM users WHERE username = :username";
+                    $query = "SELECT id FROM users WHERE username = :username LIMIT 1";
                     $stmt = $db->prepare($query);
                     $stmt->bindParam(':username', $_POST['username']);
                     $stmt->execute();
                     $new_user = $stmt->fetch(PDO::FETCH_ASSOC);
-                    
-                    if ($role === 'grade_level_coordinator' && isset($_POST['grade_levels'])) {
-                        // Save grade levels
-                        foreach ($_POST['grade_levels'] as $grade_level) {
-                            $grade_query = "INSERT INTO evaluator_grade_levels (evaluator_id, grade_level, created_at) 
-                                           VALUES (:evaluator_id, :grade_level, NOW())";
-                            $grade_stmt = $db->prepare($grade_query);
-                            $grade_stmt->bindParam(':evaluator_id', $new_user['id']);
-                            $grade_stmt->bindParam(':grade_level', $grade_level);
-                            $grade_stmt->execute();
+
+                    if ($new_user && isset($new_user['id'])) {
+                        $new_id = $new_user['id'];
+
+                        // For grade level coordinators: remove any existing grade level rows then insert selected ones
+                        if ($role === 'grade_level_coordinator') {
+                            // Remove existing entries just in case
+                            $del_q = "DELETE FROM evaluator_grade_levels WHERE evaluator_id = :evaluator_id";
+                            $del_stmt = $db->prepare($del_q);
+                            $del_stmt->bindParam(':evaluator_id', $new_id);
+                            $del_stmt->execute();
+
+                            if (!empty($_POST['grade_levels']) && is_array($_POST['grade_levels'])) {
+                                $grade_query = "INSERT INTO evaluator_grade_levels (evaluator_id, grade_level, created_at) 
+                                               VALUES (:evaluator_id, :grade_level, NOW())";
+                                $grade_stmt = $db->prepare($grade_query);
+                                foreach ($_POST['grade_levels'] as $grade_level) {
+                                    $grade_level = trim($grade_level);
+                                    if ($grade_level === '') continue;
+                                    $grade_stmt->bindParam(':evaluator_id', $new_id);
+                                    $grade_stmt->bindParam(':grade_level', $grade_level);
+                                    $grade_stmt->execute();
+                                }
+                            }
                         }
-                    } elseif (in_array($role, ['subject_coordinator', 'chairperson']) && isset($_POST['subjects'])) {
-                        // Save subjects
-                        foreach ($_POST['subjects'] as $subject) {
-                            $subject_query = "INSERT INTO evaluator_subjects (evaluator_id, subject, created_at) 
-                                             VALUES (:evaluator_id, :subject, NOW())";
-                            $subject_stmt = $db->prepare($subject_query);
-                            $subject_stmt->bindParam(':evaluator_id', $new_user['id']);
-                            $subject_stmt->bindParam(':subject', $subject);
-                            $subject_stmt->execute();
+
+                        // For subject coordinators and chairpersons: remove existing subjects then insert selected ones
+                        if (in_array($role, ['subject_coordinator', 'chairperson'])) {
+                            $del_q = "DELETE FROM evaluator_subjects WHERE evaluator_id = :evaluator_id";
+                            $del_stmt = $db->prepare($del_q);
+                            $del_stmt->bindParam(':evaluator_id', $new_id);
+                            $del_stmt->execute();
+
+                            if (!empty($_POST['subjects']) && is_array($_POST['subjects'])) {
+                                $subject_query = "INSERT INTO evaluator_subjects (evaluator_id, subject, created_at) 
+                                                 VALUES (:evaluator_id, :subject, NOW())";
+                                $subject_stmt = $db->prepare($subject_query);
+                                foreach ($_POST['subjects'] as $subject) {
+                                    $subject = trim($subject);
+                                    if ($subject === '') continue;
+                                    $subject_stmt->bindParam(':evaluator_id', $new_id);
+                                    $subject_stmt->bindParam(':subject', $subject);
+                                    $subject_stmt->execute();
+                                }
+                            }
                         }
-                    }
-                    
-                    // Assign to Dean/Principal if specified
-                    if (isset($_POST['supervisor_id']) && !empty($_POST['supervisor_id'])) {
-                        $supervisor_query = "INSERT INTO evaluator_assignments (evaluator_id, supervisor_id, assigned_at) 
-                                           VALUES (:evaluator_id, :supervisor_id, NOW())";
-                        $supervisor_stmt = $db->prepare($supervisor_query);
-                        $supervisor_stmt->bindParam(':evaluator_id', $new_user['id']);
-                        $supervisor_stmt->bindParam(':supervisor_id', $_POST['supervisor_id']);
-                        $supervisor_stmt->execute();
+
+                        // Assign to Dean/Principal if specified
+                        if (isset($_POST['supervisor_id']) && !empty($_POST['supervisor_id'])) {
+                            $supervisor_query = "INSERT INTO evaluator_assignments (evaluator_id, supervisor_id, assigned_at) 
+                                               VALUES (:evaluator_id, :supervisor_id, NOW())";
+                            $supervisor_stmt = $db->prepare($supervisor_query);
+                            $supervisor_stmt->bindParam(':evaluator_id', $new_id);
+                            $supervisor_stmt->bindParam(':supervisor_id', $_POST['supervisor_id']);
+                            $supervisor_stmt->execute();
+                        }
                     }
                 }
                 
@@ -146,7 +171,37 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
                 
                 if($createResult === true) {
-                    $_SESSION['success'] = ucfirst(str_replace('_',' ',$role)) . " account created successfully.";
+                    // Build success message and include saved specializations if any
+                    $successMsg = ucfirst(str_replace('_',' ',$role)) . " account created successfully.";
+                    // If grade levels were saved, show them
+                    if (isset($new_id)) {
+                        // Check saved grade levels
+                        if ($role === 'grade_level_coordinator') {
+                            $q = "SELECT grade_level FROM evaluator_grade_levels WHERE evaluator_id = :evaluator_id";
+                            $s = $db->prepare($q);
+                            $s->bindParam(':evaluator_id', $new_id);
+                            $s->execute();
+                            $saved = $s->fetchAll(PDO::FETCH_COLUMN, 0);
+                            if (!empty($saved)) {
+                                $successMsg .= ' Saved grade levels: ' . implode(', ', $saved) . '.';
+                                error_log('Saved grade levels for user ' . $new_id . ': ' . implode(', ', $saved));
+                            }
+                        }
+
+                        // Check saved subjects for subject coordinators / chairpersons
+                        if (in_array($role, ['subject_coordinator', 'chairperson'])) {
+                            $q = "SELECT subject FROM evaluator_subjects WHERE evaluator_id = :evaluator_id";
+                            $s = $db->prepare($q);
+                            $s->bindParam(':evaluator_id', $new_id);
+                            $s->execute();
+                            $saved = $s->fetchAll(PDO::FETCH_COLUMN, 0);
+                            if (!empty($saved)) {
+                                $successMsg .= ' Saved subjects: ' . implode(', ', $saved) . '.';
+                                error_log('Saved subjects for user ' . $new_id . ': ' . implode(', ', $saved));
+                            }
+                        }
+                    }
+                    $_SESSION['success'] = $successMsg;
                 } elseif($createResult === 'exists') {
                     $_SESSION['error'] = "Username already exists. Please choose a different username.";
                 } else {

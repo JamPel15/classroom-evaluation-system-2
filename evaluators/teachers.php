@@ -164,7 +164,7 @@ if (in_array($_SESSION['role'], ['subject_coordinator', 'chairperson', 'grade_le
 }
 
 // Get assigned teachers for current evaluator
-$assigned_query = "SELECT ta.*, t.name as teacher_name, t.department 
+$assigned_query = "SELECT ta.*, t.name as teacher_name, t.department, t.evaluation_schedule, t.evaluation_room
                   FROM teacher_assignments ta 
                   JOIN teachers t ON ta.teacher_id = t.id 
                   WHERE ta.evaluator_id = :evaluator_id 
@@ -437,36 +437,6 @@ if (in_array($_SESSION['role'], ['dean', 'principal'])) {
             <?php endif; ?>
 
             <!-- Assign Teacher form removed (assignments handled via dedicated pages) -->
-
-            <?php if(in_array($_SESSION['role'], ['dean', 'principal'])): ?>
-            <!-- My Coordinators (moved from dashboard) -->
-            <div class="card mb-4">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0"><i class="fas fa-users-cog me-2"></i>My Coordinators</h5>
-                </div>
-                <div class="card-body">
-                    <?php if(!empty($assigned_coordinators)): ?>
-                        <ul class="list-group">
-                            <?php foreach($assigned_coordinators as $coord): ?>
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <strong><?php echo htmlspecialchars($coord['name']); ?></strong>
-                                        <span class="text-muted ms-2"><?php echo ucfirst(str_replace('_',' ',$coord['role'])); ?></span>
-                                        <div class="text-muted small"><?php echo htmlspecialchars($coord['department']); ?></div>
-                                    </div>
-                                    <div class="btn-group">
-                                        <a href="evaluate_coordinator.php?user_id=<?php echo $coord['id']; ?>" class="btn btn-sm btn-primary">Evaluate</a>
-                                        <a href="assign_teachers.php?evaluator_id=<?php echo $coord['id']; ?>" class="btn btn-sm btn-outline-info">View Teachers</a>
-                                    </div>
-                                </li>
-                            <?php endforeach; ?>
-                        </ul>
-                    <?php else: ?>
-                        <p class="text-muted mb-0">You have no coordinators assigned.</p>
-                    <?php endif; ?>
-                </div>
-            </div>
-            <?php endif; ?>
 
             <!-- Assigned Teachers Section -->
             <?php if (!empty($assigned_teachers)): ?>

@@ -142,40 +142,101 @@ if(in_array($_SESSION['role'], ['subject_coordinator', 'chairperson', 'grade_lev
             </div>
             <?php endif; ?>
 
-            <!-- Organizational Hierarchy Info -->
+            <!-- Statistics (top row) -->
             <div class="row mb-4">
-                <?php if(in_array($_SESSION['role'], ['dean', 'principal'])): ?>
-                <!-- Dean/Principal: show assigned coordinators and their notifications -->
-                <div class="col-12">
-                    <div class="card mb-3">
-                        <div class="card-header bg-info text-white">
-                            <h5 class="mb-0"><i class="fas fa-users-cog me-2"></i>My Coordinators</h5>
-                        </div>
-                        <div class="card-body">
-                            <?php if(!empty($assigned_coordinators)): ?>
-                                <ul class="list-group">
-                                    <?php foreach($assigned_coordinators as $coord): ?>
-                                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <strong><?php echo htmlspecialchars($coord['name']); ?></strong>
-                                                <span class="text-muted ms-2"><?php echo ucfirst(str_replace('_',' ',$coord['role'])); ?></span>
-                                                <div class="text-muted small"><?php echo htmlspecialchars($coord['department']); ?></div>
-                                            </div>
-                                            <div class="btn-group">
-                                                <a href="evaluate_coordinator.php?user_id=<?php echo $coord['id']; ?>" class="btn btn-sm btn-primary">Evaluate</a>
-                                                <a href="assign_teachers.php?evaluator_id=<?php echo $coord['id']; ?>" class="btn btn-sm btn-outline-info">View Teachers</a>
-                                            </div>
-                                        </li>
-                                    <?php endforeach; ?>
-                                </ul>
-                            <?php else: ?>
-                                <p class="text-muted mb-0">You have no coordinators assigned.</p>
-                            <?php endif; ?>
-                        </div>
+                <div class="col-md-6">
+                    <div class="dashboard-stat stat-1 stat-card">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        <div class="number"><?php echo $department_teachers->rowCount(); ?></div>
+                        <div>Department Teachers</div>
                     </div>
                 </div>
+                <div class="col-md-6">
+                    <div class="dashboard-stat stat-2 stat-card">
+                        <i class="fas fa-clipboard-check"></i>
+                        <div class="number"><?php echo $stats['completed_evaluations']; ?></div>
+                        <div>Completed Evaluations</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Row: My Coordinators (left) and Recent Evaluations (right) -->
+            <div class="row mb-4">
+                <?php if(in_array($_SESSION['role'], ['dean', 'principal'])): ?>
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0"><i class="fas fa-users-cog me-2"></i>My Coordinators</h5>
+                            </div>
+                            <div class="card-body">
+                                <?php if(!empty($assigned_coordinators)): ?>
+                                    <ul class="list-group">
+                                        <?php foreach($assigned_coordinators as $coord): ?>
+                                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <strong><?php echo htmlspecialchars($coord['name']); ?></strong>
+                                                    <span class="text-muted ms-2"><?php echo ucfirst(str_replace('_',' ',$coord['role'])); ?></span>
+                                                    <div class="text-muted small"><?php echo htmlspecialchars($coord['department']); ?></div>
+                                                </div>
+                                                <div class="btn-group">
+                                                    <a href="assign_teachers.php?evaluator_id=<?php echo $coord['id']; ?>" class="btn btn-sm btn-outline-info">View Teachers</a>
+                                                </div>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                <?php else: ?>
+                                    <p class="text-muted mb-0">You have no coordinators assigned.</p>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Recent Evaluations</h5>
+                            </div>
+                            <div class="card-body">
+                                <?php if($recent_evals->rowCount() > 0): ?>
+                                    <div class="list-group">
+                                        <?php while($eval = $recent_evals->fetch(PDO::FETCH_ASSOC)): 
+                                            $teacher_data = $teacher->getById($eval['teacher_id']);
+                                        ?>
+                                        <div class="list-group-item">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <h6 class="mb-1"><?php echo htmlspecialchars($teacher_data['name']); ?></h6>
+                                                    <small class="text-muted"><?php echo date('M j, Y', strtotime($eval['observation_date'])); ?></small>
+                                                </div>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="badge bg-<?php 
+                                                        $rating = $eval['overall_avg'];
+                                                        if($rating >= 4.6) echo 'success';
+                                                        elseif($rating >= 3.6) echo 'primary';
+                                                        elseif($rating >= 2.9) echo 'info';
+                                                        elseif($rating >= 1.8) echo 'warning';
+                                                        else echo 'danger';
+                                                    ?>"><?php echo number_format($rating, 1); ?></span>
+                                                    <a href="evaluation_view.php?id=<?php echo $eval['id']; ?>" class="btn btn-sm btn-outline-primary">View</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <?php endwhile; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="text-center py-4">
+                                        <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                                        <h5>No Evaluations Yet</h5>
+                                        <p class="text-muted">Start by conducting your first classroom evaluation.</p>
+                                        <a href="evaluation.php" class="btn btn-primary">
+                                            <i class="fas fa-plus me-2"></i>Start Evaluation
+                                        </a>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
                 <?php elseif(in_array($_SESSION['role'], ['subject_coordinator', 'chairperson', 'grade_level_coordinator'])): ?>
-                    <!-- Coordinator Dashboard -->
+                    <!-- Coordinator Dashboard (full width below stats) -->
                     <div class="col-12">
                         <div class="card coordinator-card">
                             <div class="card-header bg-success text-white">
@@ -260,73 +321,6 @@ if(in_array($_SESSION['role'], ['subject_coordinator', 'chairperson', 'grade_lev
                         </div>
                     </div>
                 <?php endif; ?>
-            </div>
-            
-            <!-- Statistics Cards -->
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="dashboard-stat stat-1 stat-card">
-                        <i class="fas fa-chalkboard-teacher"></i>
-                        <div class="number"><?php echo $department_teachers->rowCount(); ?></div>
-                        <div>Department Teachers</div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="dashboard-stat stat-2 stat-card">
-                        <i class="fas fa-clipboard-check"></i>
-                        <div class="number"><?php echo $stats['completed_evaluations']; ?></div>
-                        <div>Completed Evaluations</div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Recent Evaluations & Quick Actions -->
-            <div class="row mt-4">
-                <div class="col-md-8">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">Recent Evaluations</h5>
-                        </div>
-                        <div class="card-body">
-                            <?php if($recent_evals->rowCount() > 0): ?>
-                                <div class="list-group">
-                                    <?php while($eval = $recent_evals->fetch(PDO::FETCH_ASSOC)): 
-                                        $teacher_data = $teacher->getById($eval['teacher_id']);
-                                    ?>
-                                    <div class="list-group-item">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <h6 class="mb-1"><?php echo htmlspecialchars($teacher_data['name']); ?></h6>
-                                                <small class="text-muted"><?php echo date('M j, Y', strtotime($eval['observation_date'])); ?></small>
-                                            </div>
-                                            <div class="d-flex align-items-center gap-2">
-                                                <span class="badge bg-<?php 
-                                                    $rating = $eval['overall_avg'];
-                                                    if($rating >= 4.6) echo 'success';
-                                                    elseif($rating >= 3.6) echo 'primary';
-                                                    elseif($rating >= 2.9) echo 'info';
-                                                    elseif($rating >= 1.8) echo 'warning';
-                                                    else echo 'danger';
-                                                ?>"><?php echo number_format($rating, 1); ?></span>
-                                                <a href="evaluation_view.php?id=<?php echo $eval['id']; ?>" class="btn btn-sm btn-outline-primary">View</a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <?php endwhile; ?>
-                                </div>
-                            <?php else: ?>
-                                <div class="text-center py-4">
-                                    <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
-                                    <h5>No Evaluations Yet</h5>
-                                    <p class="text-muted">Start by conducting your first classroom evaluation.</p>
-                                    <a href="evaluation.php" class="btn btn-primary">
-                                        <i class="fas fa-plus me-2"></i>Start Evaluation
-                                    </a>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
